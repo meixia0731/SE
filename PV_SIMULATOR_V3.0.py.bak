@@ -87,8 +87,10 @@ def int2C(data_type,value):
         return[value[0]*16+value[1],value[2]*16+value[3],value[4]*16+value[5],value[6]*16+value[7]]
 
 def C2int(data_type,value):
+    bytes_value = b''
     if data_type == 'uint64':
-        bytes_value = struct.pack('>H',value[0]) + struct.pack('>H',value[1]) + struct.pack('>H',value[2]) + struct.pack('>H',value[3])
+        for i in bytes(value):
+            bytes_value = bytes_value + struct.pack('>H',i)
         value = struct.unpack('>Q',bytes_value)
         return value
 

@@ -17,7 +17,7 @@ active_power_scaling = 1
 active_power_sp_scaling = 1
 
 # list[address,length,sign,default_value]
-active_power_addr = [8069, 'uint64', 30000]
+active_power_addr = [8069, 'int64', 1]
 reactive_power_addr = [8075, 'int64', 10000]
 limitation_power_addr = [8085, 32, 2, 30000]
 start_stop_status_addr = [8067, 16, 2, 21]
@@ -56,7 +56,7 @@ def pv_simulator():
         print('read:active_power_c',active_power_c)
         active_power_int = C2int(active_power_addr[1], active_power_c)
         print('decode:active_power_int',active_power_int)
-        active_power_int = random.randrange(18446744073709551615)
+        active_power_int = random.randint(-9223372036854775807,9223372036854775807)
         print('new:active_power_int',active_power_int)
         active_power_c = int2C(active_power_addr[1], active_power_int)
         print('send:active_power_c',active_power_c)
@@ -93,9 +93,10 @@ def C2int(data_type, value):
 #        print('C2int output', struct.unpack('>Q',bytes_value))
         return struct.unpack('>Q',bytes_value)[0]
     if data_type == 'int64':
-        bytes_value = struct.pack('>H', value[0]) + struct.pack('>H', value[1]) + struct.pack('>H', value[2]) + struct.pack('>H', value[3])
-        value = struct.unpack('>q', bytes_value)
-        return value
+        for i in value:
+            bytes_value = bytes_value + struct.pack('>H', i)
+        #        print('C2int output', struct.unpack('>Q',bytes_value))
+        return struct.unpack('>q', bytes_value)[0]
 
 if __name__ == "__main__":
     pv_simulator()

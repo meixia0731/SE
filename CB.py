@@ -1,10 +1,6 @@
-import threading
-import modbus_tk
-import modbus_tk.defines as cst
-import modbus_tk.modbus as modbus
-import modbus_tk.modbus_tcp as modbus_tcp
 import time
-import random
+import modbus_tk.defines as cst
+import modbus_tk.modbus_tcp as modbus_tcp
 
 # ------------------------------------------------------------------------------
 
@@ -45,29 +41,29 @@ def CB_SIMULATOR():
     # Read cmd and generate feedback
     while True:
         # Read data from memory, convert it from machine code to int. These values are input of the simulator engine
-        CB_Status_INT = slave_1.get_values('A', CB_Status_addr[0], 1)
-        CB_Cmd_INT = slave_1.get_values('B', CB_Cmd_addr[0], 6)
+        cb_status_int = slave_1.get_values('A', CB_Status_addr[0], 1)
+        cb_cmd_int = slave_1.get_values('B', CB_Cmd_addr[0], 6)
 
         print('---------------------------------------------------------')
         print('Engine inputs:')
-        print('CB_Status:', Status[CB_Status_INT[0]])
-        print(CB_Cmd_INT == (904, 10, 5377, 1, 13017, 13017))
-        print('CB_Cmd:', CB_Cmd_INT)
+        print('CB_Status:', Status[cb_status_int[0]])
+        print(cb_cmd_int == (904, 10, 5377, 1, 13017, 13017))
+        print('CB_Cmd:', cb_cmd_int)
         print('----------------')
         print('Engine Outputs:')
 
         # if stop command received, change P setpoint to zero. New P = P + (P_setpint-P)*Ramprate
-        if CB_Cmd_INT == (904, 10, 5377, 1, 13107, 13107):
-            CB_Status_INT = [4]
+        if cb_cmd_int == (904, 10, 5377, 1, 13107, 13107):
+            cb_status_int = [4]
             slave_1.set_values('B', CB_Cmd_addr[0], [0] * 6)
-        elif CB_Cmd_INT == (905, 10, 5377, 1, 13107, 13107):
-            CB_Status_INT = [5]
+        elif cb_cmd_int == (905, 10, 5377, 1, 13107, 13107):
+            cb_status_int = [5]
             slave_1.set_values('B', CB_Cmd_addr[0], [0] * 6)
         else:
             pass
         # Update P to memory
-        slave_1.set_values('A', CB_Status_addr[0], CB_Status_INT)
-        print('New CB_Status:', Status[CB_Status_INT[0]])
+        slave_1.set_values('A', CB_Status_addr[0], cb_status_int)
+        print('New CB_Status:', Status[cb_status_int[0]])
         time.sleep(1)
 
 

@@ -14,13 +14,10 @@ modbus_slave_port = 502
 modbus_slave_id = 1
 # --------------------------------------------------------------------
 # data points configuration, [modbus_address, data_type, length, initial_value]
-active_power_addr = [8069, 'uint64', 4, 0]
-reactive_power_addr = [8075, 'int64', 4, 10000]
-limitation_power_addr = [8085, 'uint32', 2, 30000]
-start_stop_status_addr = [8067, 'uint16', 1, 1]
-start_stop_cmd_addr = [8002, 'uint16', 1, 1]
-active_power_sp_addr = [8005, 'uint32', 2, 30000]
-energy_addr = [8079, 'uint64', 4, 30000]
+Start_ctrl_addr = [8069, 'uint64', 4, 0]
+Stop_ctrl_addr = [8069, 'uint64', 4, 0]
+Power_setpoint = [8069, 'uint64', 4, 0]
+
 # --------------------------------------------------------------------
 # Scaling
 p_scaling = 100
@@ -29,9 +26,6 @@ p_sp_scaling = 100
 # Ramp_rate
 Ramp_rate_percentage = 0.3
 # --------------------------------------------------------------------
-cmd_str = {0: 'Stop', 1: 'Start'}
-status_str = {0: 'Stopped', 1: 'Started'}
-
 
 # --------------------------------------------------------------------
 def bess_simulator():
@@ -48,81 +42,19 @@ def bess_simulator():
 
     # Initialization, convert data to C structure
     active_power_c = int2C(active_power_addr[1], active_power_addr[3])
-    reactive_power_c = int2C(reactive_power_addr[1], reactive_power_addr[3])
-    limitation_power_c = int2C(limitation_power_addr[1], limitation_power_addr[3])
-    start_stop_status_c = int2C(start_stop_status_addr[1], start_stop_status_addr[3])
-    start_stop_cmd_c = int2C(start_stop_cmd_addr[1], start_stop_cmd_addr[3])
-    active_power_sp_c = int2C(active_power_sp_addr[1], active_power_sp_addr[3])
-    energy_c = int2C(energy_addr[1], energy_addr[3])
-
     slave_1.set_values('A', active_power_addr[0], active_power_c)
-    slave_1.set_values('A', reactive_power_addr[0], reactive_power_c)
-    slave_1.set_values('A', limitation_power_addr[0], limitation_power_c)
-    slave_1.set_values('A', start_stop_status_addr[0], start_stop_status_c)
-    slave_1.set_values('B', start_stop_cmd_addr[0], start_stop_cmd_c)
-    slave_1.set_values('B', active_power_sp_addr[0], active_power_sp_c)
-    slave_1.set_values('A', energy_addr[0], energy_c)
+
 
     # Read setpoint and generate feedback
     while True:
         print('--------------------------------')
         # Read data from slave memory, C structure
         active_power_c = slave_1.get_values('A', active_power_addr[0], active_power_addr[2])
-        reactive_power_c = slave_1.get_values('A', reactive_power_addr[0], reactive_power_addr[2])
-        limitation_power_c = slave_1.get_values('A', limitation_power_addr[0], limitation_power_addr[2])
-        start_stop_status_c = slave_1.get_values('A', start_stop_status_addr[0], start_stop_status_addr[2])
-        start_stop_cmd_c = slave_1.get_values('B', start_stop_cmd_addr[0], start_stop_cmd_addr[2])
-        active_power_sp_c = slave_1.get_values('B', active_power_sp_addr[0], active_power_sp_addr[2])
-        energy_c = slave_1.get_values('A', energy_addr[0], energy_addr[2])
-
         # Convert C structure to INT, as engine inputs
         active_power_int = C2int(active_power_addr[1], active_power_c)
-        reactive_power_int = C2int(reactive_power_addr[1], reactive_power_c)
-        limitation_power_int = C2int(limitation_power_addr[1], limitation_power_c)
-        start_stop_status_int = C2int(start_stop_status_addr[1], start_stop_status_c)
-        start_stop_cmd_int = C2int(start_stop_cmd_addr[1], start_stop_cmd_c)
-        active_power_sp_int = C2int(active_power_sp_addr[1], active_power_sp_c)
-        energy_int = C2int(energy_addr[1], energy_c)
-
         print('Engine Inputs:')
         print('active_power:', active_power_int, 'W')
-        print('reactive_power:', reactive_power_int, 'Var')
-        print('limitation_power:', limitation_power_int, 'W')
-        print('start_stop_status:', status_str[start_stop_status_int])
-        print('start_stop_cmd:', cmd_str[start_stop_cmd_int])
-        print('active_power_setpoint:', active_power_sp_int, 'W')
-        print('energy_int:', energy_int, 'Wh')
-
-        # if stop command received, change P setpoint to zero. New P = P + (P_setpint-P)*Ramprate
-        if start_stop_cmd_int == 0:
-            active_power_int = int(
-                ((0 - active_power_int) * Ramp_rate_percentage + active_power_int) * random.uniform(0.98, 1.02))
-        elif start_stop_cmd_int == 1:
-            active_power_int = int(((min(active_power_sp_int,
-                                         limitation_power_int) - active_power_int) * Ramp_rate_percentage + active_power_int) * random.uniform(
-                0.99, 1.01))
-        else:
-            print('cmd input out of range, 0 for stop, 1 for start')
-            active_power_int = int(((min(active_power_sp_int,
-                                         limitation_power_int) - active_power_int) * Ramp_rate_percentage + active_power_int) * random.uniform(
-                0.99, 1.01))
-        active_power_c = int2C(active_power_addr[1], active_power_int)
-        slave_1.set_values('A', active_power_addr[0], active_power_c)
-        # if stop command received AND active_power = 0, change status to Stopped; else change status to Started
-        if start_stop_cmd_int == 0 and active_power_int == 0:
-            start_stop_status_int = 0
-            start_stop_status_c = int2C(start_stop_status_addr[1], start_stop_status_int)
-            slave_1.set_values('A', start_stop_status_addr[0], start_stop_status_c)
-        else:
-            start_stop_status_int = 1
-            start_stop_status_c = int2C(start_stop_status_addr[1], start_stop_status_int)
-            slave_1.set_values('A', start_stop_status_addr[0], start_stop_status_c)
-        print('')
-        print('Engine Outputs:')
-        print('active_power:', active_power_int, 'W')
-        print('start_stop_status:', status_str[start_stop_status_int])
-        print('--------------------------------')
-        time.sleep(2)
+        time.sleep(1)
 
 
 def int2C(data_type, value, endianness='big'):

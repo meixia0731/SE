@@ -29,10 +29,12 @@ p_sp_scaling = 100
 # Ramp_rate
 Ramp_rate_percentage = 0.3
 # --------------------------------------------------------------------
-cmd_str = {0:'Stop', 1:'Start'}
-status_str = {0:'Stopped', 1:'Started'}
+cmd_str = {0: 'Stop', 1: 'Start'}
+status_str = {0: 'Stopped', 1: 'Started'}
+
+
 # --------------------------------------------------------------------
-def pv_simulator():
+def bess_simulator():
     # Create the server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip, port=modbus_slave_port)
     server.start()
@@ -93,12 +95,17 @@ def pv_simulator():
 
         # if stop command received, change P setpoint to zero. New P = P + (P_setpint-P)*Ramprate
         if start_stop_cmd_int == 0:
-            active_power_int = int(((0 - active_power_int) * Ramp_rate_percentage + active_power_int) * random.uniform(0.98, 1.02))
+            active_power_int = int(
+                ((0 - active_power_int) * Ramp_rate_percentage + active_power_int) * random.uniform(0.98, 1.02))
         elif start_stop_cmd_int == 1:
-            active_power_int = int(((min(active_power_sp_int, limitation_power_int) - active_power_int) * Ramp_rate_percentage + active_power_int) * random.uniform(0.99, 1.01))
+            active_power_int = int(((min(active_power_sp_int,
+                                         limitation_power_int) - active_power_int) * Ramp_rate_percentage + active_power_int) * random.uniform(
+                0.99, 1.01))
         else:
             print('cmd input out of range, 0 for stop, 1 for start')
-            active_power_int = int(((min(active_power_sp_int, limitation_power_int) - active_power_int) * Ramp_rate_percentage + active_power_int) * random.uniform(0.99, 1.01))
+            active_power_int = int(((min(active_power_sp_int,
+                                         limitation_power_int) - active_power_int) * Ramp_rate_percentage + active_power_int) * random.uniform(
+                0.99, 1.01))
         active_power_c = int2C(active_power_addr[1], active_power_int)
         slave_1.set_values('A', active_power_addr[0], active_power_c)
         # if stop command received AND active_power = 0, change status to Stopped; else change status to Started
@@ -116,6 +123,7 @@ def pv_simulator():
         print('start_stop_status:', status_str[start_stop_status_int])
         print('--------------------------------')
         time.sleep(2)
+
 
 def int2C(data_type, value, endianness='big'):
     if data_type == 'uint64':
@@ -191,4 +199,4 @@ def C2int(data_type, value, endianness='big'):
 
 
 if __name__ == "__main__":
-    pv_simulator()
+    bess_simulator()

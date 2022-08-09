@@ -63,33 +63,31 @@ def CB_SIMULATOR(modbus_slave_ip, cb_type):
         # if stop command received, change P setpoint to zero. New P = P + (P_setpint-P)*Ramprate
         if cb_cmd_int == (904, 10, CB[cb_type], 1, 13107, 13107):
             cb_status_int = [4]
-            print('Open command received', modbus_slave_ip)
+            print(modbus_slave_ip, 'Open command received:', )
             slave_1.set_values('B', CB_Cmd_addr[0], [0] * 6)
-            print('Open command executed', modbus_slave_ip)
+            print(modbus_slave_ip, 'Open command executed:')
         elif cb_cmd_int == (905, 10, CB[cb_type], 1, 13107, 13107):
             cb_status_int = [5]
-            print('Close command received', modbus_slave_ip)
+            print(modbus_slave_ip, 'Close command received')
             slave_1.set_values('B', CB_Cmd_addr[0], [0] * 6)
-            print('Close command executed', modbus_slave_ip)
+            print(modbus_slave_ip, 'Close command executed')
         else:
             pass
-        # Update P to memory
+
         slave_1.set_values('A', CB_Status_addr[0], cb_status_int)
-        #        print('New CB_Status:', Status[cb_status_int[0]])
         time.sleep(0.1)
 
 
 if __name__ == "__main__":
-    p1 = Process(target=CB_SIMULATOR, args=(modbus_slave_ip1, 'WT52'))
-    p2 = Process(target=CB_SIMULATOR, args=(modbus_slave_ip2, 'WT52'))
-    p3 = Process(target=CB_SIMULATOR, args=(modbus_slave_ip3, 'WT52'))
-    p4 = Process(target=CB_SIMULATOR, args=(modbus_slave_ip4, 'WT52'))
-    p5 = Process(target=CB_SIMULATOR, args=(modbus_slave_ip5, 'WT52'))
-    p6 = Process(target=CB_SIMULATOR, args=(modbus_slave_ip6, 'NSX'))
-    p1.start()
-    p2.start()
-    p3.start()
-    p4.start()
-    p5.start()
-    p6.start()
-
+    CB1 = Process(target=CB_SIMULATOR, args=(modbus_slave_ip1, 'WT52'))
+    CB2 = Process(target=CB_SIMULATOR, args=(modbus_slave_ip2, 'WT52'))
+    CB3 = Process(target=CB_SIMULATOR, args=(modbus_slave_ip3, 'WT52'))
+    CB4 = Process(target=CB_SIMULATOR, args=(modbus_slave_ip4, 'WT52'))
+    CB5 = Process(target=CB_SIMULATOR, args=(modbus_slave_ip5, 'WT52'))
+    CB6 = Process(target=CB_SIMULATOR, args=(modbus_slave_ip6, 'NSX'))
+    CB1.start()
+    CB2.start()
+    CB3.start()
+    CB4.start()
+    CB5.start()
+    CB6.start()

@@ -14,9 +14,52 @@ modbus_slave_port = 502
 modbus_slave_id = 1
 # --------------------------------------------------------------------
 # data points configuration, [modbus_address, data_type, length, initial_value]
-Start_ctrl_addr = [8069, 'uint64', 4, 0]
-Stop_ctrl_addr = [8069, 'uint64', 4, 0]
-Power_setpoint = [8069, 'uint64', 4, 0]
+#Start_ctrl_addr = [8069, 'uint64', 4, 0]
+#Stop_ctrl_addr = [8069, 'uint64', 4, 0]
+#Power_setpoint = [8069, 'uint64', 4, 0]
+
+Status_1
+Start_Status
+Starting_Status
+Stopping_Status
+Stop_Status
+Online_Status
+Auto_Mode
+Manual_Mode
+Operator_Mode
+AC_BC_Closed
+Healthy
+Status_2
+CTR_Active
+Heartbeat
+Active_Power
+Reactive_Power
+Frequency
+Apparent_Power
+Voltage_V12
+Voltage_V23
+Voltage_V31
+Voltage_average
+Current_I1_HB
+Current_I2
+Current_I3
+Current_average
+Max_Charge_Power
+Max_Discharge_Power
+Voltage_DC
+SOC
+Alarm_Status
+Smoke_Alarm
+SCADA_Lost_Comms_Al
+PAct_01
+Start_Command_Feedback
+Stop_Command_Feedback
+Alarm_Reset_Command_Feedback
+Auto_Command_Feedback
+Operator_Command_Feedback
+Enable_Power_Control_Cmd_Feedback
+Disable_Power_Control_Cmd_Feedback
+Active_Power_Setpoint_Feedback
 
 # --------------------------------------------------------------------
 # Scaling

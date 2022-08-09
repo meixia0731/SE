@@ -2,6 +2,7 @@ import time
 import modbus_tk.defines as cst
 import modbus_tk.modbus_tcp as modbus_tcp
 from multiprocessing import Process
+import datetime
 
 # ------------------------------------------------------------------------------
 
@@ -63,14 +64,14 @@ def CB_SIMULATOR(modbus_slave_ip, cb_type):
         # if stop command received, change P setpoint to zero. New P = P + (P_setpint-P)*Ramprate
         if cb_cmd_int == (904, 10, CB[cb_type], 1, 13107, 13107):
             cb_status_int = [4]
-            print(modbus_slave_ip, 'Open command received:', )
+            print(modbus_slave_ip, 'Open command received:', datetime.datetime.now())
             slave_1.set_values('B', CB_Cmd_addr[0], [0] * 6)
-            print(modbus_slave_ip, 'Open command executed:')
+            print(modbus_slave_ip, 'Open command executed:', datetime.datetime.now())
         elif cb_cmd_int == (905, 10, CB[cb_type], 1, 13107, 13107):
             cb_status_int = [5]
-            print(modbus_slave_ip, 'Close command received')
+            print(modbus_slave_ip, 'Close command received', datetime.datetime.now())
             slave_1.set_values('B', CB_Cmd_addr[0], [0] * 6)
-            print(modbus_slave_ip, 'Close command executed')
+            print(modbus_slave_ip, 'Close command executed', datetime.datetime.now())
         else:
             pass
 

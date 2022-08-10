@@ -7,7 +7,7 @@ import modbus_tk.modbus_tcp as modbus_tcp
 
 # --------------------------------------------------------------------
 # Listening IP address
-modbus_slave_ip = '0.0.0.0'
+modbus_slave_ip = '172.168.200.8'
 # Listening port
 modbus_slave_port = 502
 # Listening slave ID

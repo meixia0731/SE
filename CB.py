@@ -9,12 +9,12 @@ import datetime
 # Configuration:
 
 # Listening IP address
-modbus_slave_ip1 = "192.168.3.201"
-modbus_slave_ip2 = "192.168.3.202"
-modbus_slave_ip3 = "192.168.3.203"
-modbus_slave_ip4 = "192.168.3.204"
-modbus_slave_ip5 = "192.168.3.205"
-modbus_slave_ip6 = "192.168.3.210"
+modbus_slave_ip1 = "172.168.200.1"
+modbus_slave_ip2 = "172.168.200.2"
+modbus_slave_ip3 = "172.168.200.3"
+modbus_slave_ip4 = "172.168.200.4"
+modbus_slave_ip5 = "172.168.200.5"
+modbus_slave_ip6 = "172.168.200.10"
 
 # Listening port
 modbus_slave_port = 502

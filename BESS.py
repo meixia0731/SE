@@ -17,26 +17,52 @@ modbus_slave_id = 1
 # Start_ctrl_addr = [8069, 'uint64', 4, 0]
 # Stop_ctrl_addr = [8069, 'uint64', 4, 0]
 # Power_setpoint = [8069, 'uint64', 4, 0]
+# Measurements
 Voltage_V12 = [71, 'float32', 2, 380]
 Voltage_V23 = [73, 'float32', 2, 380]
 Voltage_V31 = [75, 'float32', 2, 380]
 Current_I1 = [79, 'float32', 2, 3]
 Current_I2 = [81, 'float32', 2, 3]
 Current_I3 = [83, 'float32', 2, 3]
-Active_Power = [59, 'float32', 2, 0]
-Reactive_Power = [61, 'float32', 2, 0]
+Active_Power = [59, 'float32', 2, 100]
+Reactive_Power = [61, 'float32', 2, -100]
 Frequency = [65, 'float32', 2, 50]
-SOC = [213, 'float32', 2, 50]
+SOC = [523, 'float32', 2, 50]
+# Control commands
+Start_cmd = [2100, 'uint16', 1, 1]
+Stop_cmd = [2101, 'uint16', 1, 0]
+Alarm_rst_cmd = [2102, 'uint16', 1, 0]
+Auto_mode_cmd = [2103, 'uint16', 1, 0]
+Operator_mode_cmd = [2104, 'uint16', 1, 1]
+P_enable_cmd = [2105, 'uint16', 1, 1]
+P_disable_cmd = [2106, 'uint16', 1, 0]
+# Active power setpoint
+SP_cmd = [2151, 'float32', 2, -30]
+SP_cmd_f = [2337, 'float32', 2, -30]
 
-Start_cmd = [2100, 'int16', 1, 1]
-Stop_cmd = [2101, 'int16', 1, 0]
-Alarm_rst_cmd = [2102, 'int16', 1, 0]
-Auto_mode_cmd = [2103, 'int16', 1, 0]
-Operator_mode_cmd = [2104, 'int16', 1, 1]
-P_enable_cmd = [2105, 'int16', 1, 1]
-P_disable_cmd = [2106, 'int16', 1, 0]
+# Status
+Running = 1
+Starting = 0
+Stopping = 0
+Stopped = 0
+Online = 1
+Auto_Mode_Active = 0
+Manual_Mode_Active = 0
+Operator_Mode_Active = 1
+AC_CB_Closed = 0
+Alarms_Healthy = 1
+Grid_Tie_CB_closed = 0
+Upstream_Customer_CB_Closed = 0
+Dead_powerstore_AC_connection_status = 0
+Grid_Ready_Status = 0
+Grid_Healthy_Status = 0
+Dead_microgrid_status = 0
+Reg_4_int = Alarms_Healthy * 512 + AC_CB_Closed * 256 + Operator_Mode_Active * 128 + Manual_Mode_Active * 64 + Auto_Mode_Active * 32 + Online * 16 + Stopped * 8 + Stopping * 4 + Starting * 2 + Running
+Reg_4 = [4, 'uint16', 1, Reg_4_int]
+Reg_5 = [5, 'uint16', 1, 4096]
 
-SP_cmd = [2131, 'float32', 2, -300]
+Max_charge_power = [185, 'float32', 2, 300]
+Max_discharge_power = [187, 'float32', 2, 300]
 # Status_1
 # Start_Status
 # Starting_Status
@@ -121,7 +147,6 @@ def bess_simulator():
     # SP_cmd initialization
     SP_cmd_c = int2C(SP_cmd[1], SP_cmd[3])
     slave_1.set_values('A', SP_cmd[0], SP_cmd_c)
-
     # Control initialization
     Start_cmd_c = int2C(Start_cmd[1], Start_cmd[3])
     slave_1.set_values('B', Start_cmd[0], Start_cmd_c)
@@ -138,6 +163,16 @@ def bess_simulator():
     P_disable_cmd_c = int2C(P_disable_cmd[1], P_disable_cmd[3])
     slave_1.set_values('B', P_disable_cmd[0], P_disable_cmd_c)
     # Read setpoint and generate feedback
+    # Status initialization
+    Reg_4_c = int2C(Reg_4[1], Reg_4[3])
+    slave_1.set_values('A', Reg_4[0], Reg_4_c)
+    Reg_5_c = int2C(Reg_5[1], Reg_5[3])
+    slave_1.set_values('A', Reg_5[0], Reg_5_c)
+    # Status initialization
+    Max_charge_power_c = int2C(Max_charge_power[1], Max_charge_power[3])
+    slave_1.set_values('A', Max_charge_power[0], Max_charge_power_c)
+    Max_discharge_power_c = int2C(Max_discharge_power[1], Max_discharge_power[3])
+    slave_1.set_values('A', Max_discharge_power[0], Max_discharge_power_c)
     while True:
         print('--------------------------------')
         # Read voltage from slave memory, C structure
@@ -167,6 +202,9 @@ def bess_simulator():
         # Read SP_cmd from slave memory, C structure
         SP_cmd_c = slave_1.get_values('A', SP_cmd[0], SP_cmd[2])
         SP_cmd_int = C2int(SP_cmd[1], SP_cmd_c)
+        # Read status from slave memory, C structure
+        Reg_4_c = slave_1.get_values('A', Reg_4[0], Reg_4[2])
+        Reg_4_int = C2int(Reg_4[1], Reg_4_c)
         # Read Control from slave memory, C structure
         Start_cmd_c = slave_1.get_values('B', Start_cmd[0], Start_cmd[2])
         Start_cmd_int = C2int(Start_cmd[1], Start_cmd_c)
@@ -204,19 +242,19 @@ def bess_simulator():
         if Start_cmd_int > 0 and Operator_mode_cmd_int > 0 and P_enable_cmd_int > 0:
             SP_cmd_int = SP_cmd_int
         else:
-            SP_cmd_int = random.randrange(-300,300)
+            SP_cmd_int = random.randrange(-300, 300)
         if (SOC_int > 0 and SOC_int < 100):
-            SOC_int = SOC_int - (SP_cmd_int / 300)
+            SOC_int = SOC_int - (SP_cmd_int / 300) * 10
             Active_Power_int = SP_cmd_int
         elif SOC_int <= 0:
             if SP_cmd_int < 0:
-                SOC_int = SOC_int - (SP_cmd_int / 300)
+                SOC_int = SOC_int - (SP_cmd_int / 300) * 10
             else:
                 SOC_int = 0
                 Active_Power_int = 0
         elif SOC_int >= 100:
             if SP_cmd_int > 0:
-                SOC_int = SOC_int - (SP_cmd_int / 300)
+                SOC_int = SOC_int - (SP_cmd_int / 300) * 10
             else:
                 SOC_int = 100
                 Active_Power_int = 0
@@ -225,10 +263,46 @@ def bess_simulator():
         slave_1.set_values('A', SOC[0], SOC_c)
         Active_Power_c = int2C(Active_Power[1], Active_Power_int)
         slave_1.set_values('A', Active_Power[0], Active_Power_c)
+        SP_cmd_f_c = int2C(SP_cmd_f[1], SP_cmd_int)
+        slave_1.set_values('A', SP_cmd_f[0], SP_cmd_f_c)
+        print(list(map(int,list(bin(Reg_4_int))[2:])))
+        Reg_4_value = list(map(int, list(bin(Reg_4_int))[2:]))
+        Reg_4_value.reverse()
+        print(Reg_4_value)
+        (Running, Starting, Stopping, Stopped, Online, Auto_Mode_Active, Manual_Mode_Active, Operator_Mode_Active,
+         AC_CB_Closed, Alarms_Healthy) = Reg_4_value
+        if Start_cmd_int == 1 and Stop_cmd_int == 0:
+            Running = 1
+            Stopped = 0
+            Online = 1
+        elif Start_cmd_int == 0 and Stop_cmd_int == 1:
+            Running = 0
+            Stopped = 1
+            Online = 0
+
+        if Operator_mode_cmd_int == 1:
+            Operator_Mode_Active = 1
+        else:
+            Operator_Mode_Active = 0
+        Reg_4_int = Alarms_Healthy * 512 + AC_CB_Closed * 256 + Operator_Mode_Active * 128 + Manual_Mode_Active * 64 + Auto_Mode_Active * 32 + Online * 16 + Stopped * 8 + Stopping * 4 + Starting * 2 + Running
+        Reg_4_c = int2C(Reg_4[1], Reg_4_int)
+        slave_1.set_values('A', Reg_4[0], Reg_4_c)
+
+        if P_enable_cmd_int == 1:
+            Reg_5_c = int2C(Reg_5[1], 4096)
+            slave_1.set_values('A', Reg_5[0], Reg_5_c)
+        else:
+            Reg_5_c = int2C(Reg_5[1], 0)
+            slave_1.set_values('A', Reg_5[0], Reg_5_c)
+        print('Running:', Running)
+        print('Stopped:', Stopped)
+        print('Online:', Online)
+        print('Operator_Mode_Active:', Operator_Mode_Active)
+
         if Active_Power_int == 0:
             Current_I1_int = 0
         else:
-            Current_I1_int = 1.732*Active_Power_int / (3 * Voltage_V12_int)
+            Current_I1_int = 1.732 * Active_Power_int / (3 * Voltage_V12_int)
         Current_I1_c = int2C(SOC[1], Current_I1_int)
         slave_1.set_values('A', Current_I1[0], Current_I1_c)
         slave_1.set_values('A', Current_I2[0], Current_I1_c)
@@ -262,11 +336,14 @@ def int2C(data_type, value, endianness='big'):
         return [struct.unpack('>H', value[0:2])[0]]
     elif data_type == 'float32':
         value = struct.pack('>f', value)
-        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0]]
-    if data_type == 'float64':
+        return [struct.unpack('>H', value[2:4])[0], struct.unpack('>H', value[0:2])[0]]
+    elif data_type == 'float64':
         value = struct.pack('>d', value)
         return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0],
                 struct.unpack('>H', value[4:6])[0], struct.unpack('>H', value[6:8])[0]]
+    else:
+        print("Input is not defined")
+        return
 
 
 def C2int(data_type, value, endianness='big'):
@@ -301,12 +378,15 @@ def C2int(data_type, value, endianness='big'):
         return struct.unpack('>e', bytes_value)[0]
     elif data_type == 'float32':
         for i in value:
-            bytes_value = bytes_value + struct.pack('>H', i)
+            bytes_value = struct.pack('>H', i) + bytes_value
         return struct.unpack('>f', bytes_value)[0]
     elif data_type == 'float64':
         for i in value:
             bytes_value = bytes_value + struct.pack('>H', i)
         return struct.unpack('>d', bytes_value)[0]
+    else:
+        print("Input is not defined")
+        return
 
 
 if __name__ == "__main__":

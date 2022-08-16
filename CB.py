@@ -3,6 +3,7 @@ import modbus_tk.defines as cst
 import modbus_tk.modbus_tcp as modbus_tcp
 from multiprocessing import Process
 import datetime
+import psycopg2
 
 # ------------------------------------------------------------------------------
 
@@ -32,6 +33,9 @@ CB = {'NSX': 4353, 'WT52': 5377}
 # ------------------------------------------------------------------------------
 
 def CB_SIMULATOR(modbus_slave_ip, cb_type):
+    # Connect to the log database
+    conn = psycopg2.connect(dbname="microgrid", user="postgres",password="postgres", host="127.0.0.1", port="5432")
+    cur = conn.cursor()
     # Create the server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip, port=modbus_slave_port)
     # Start the server
@@ -65,11 +69,17 @@ def CB_SIMULATOR(modbus_slave_ip, cb_type):
         if cb_cmd_int == (904, 10, CB[cb_type], 1, 13107, 13107):
             cb_status_int = [4]
             print(modbus_slave_ip, 'Open command received:', datetime.datetime.now())
+            cur.execute(
+                "INSERT INTO sim_log values(DEFAULT,now(),'{}','control_command_received_{}')".format(modbus_slave_ip,cb_cmd_int[0]))
+            conn.commit()
             slave_1.set_values('B', CB_Cmd_addr[0], [0] * 6)
             print(modbus_slave_ip, 'Open command executed:', datetime.datetime.now())
         elif cb_cmd_int == (905, 10, CB[cb_type], 1, 13107, 13107):
             cb_status_int = [5]
             print(modbus_slave_ip, 'Close command received', datetime.datetime.now())
+            cur.execute(
+                "INSERT INTO sim_log values(DEFAULT,now(),'{}','control_command_received_{}')".format(modbus_slave_ip,cb_cmd_int[0]))
+            conn.commit()
             slave_1.set_values('B', CB_Cmd_addr[0], [0] * 6)
             print(modbus_slave_ip, 'Close command executed', datetime.datetime.now())
         else:

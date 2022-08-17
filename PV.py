@@ -1,6 +1,7 @@
 import random
 import struct
 import time
+import psycopg2
 
 import modbus_tk.defines as cst
 import modbus_tk.modbus_tcp as modbus_tcp
@@ -32,9 +33,14 @@ Ramp_rate_percentage = 0.3
 cmd_str = {0: 'Stop', 1: 'Start'}
 status_str = {0: 'Stopped', 1: 'Started'}
 
-
 # --------------------------------------------------------------------
 def pv_simulator():
+    start_stop_cmd_old = 0
+    active_power_sp_old = 0
+    # Connect to the log database
+    conn = psycopg2.connect(dbname="microgrid", user="postgres",password="postgres", host="127.0.0.1", port="5432")
+    cur = conn.cursor()
+
     # Create the server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip, port=modbus_slave_port)
     server.start()
@@ -92,7 +98,17 @@ def pv_simulator():
         print('start_stop_cmd:', cmd_str[start_stop_cmd_int])
         print('active_power_setpoint:', active_power_sp_int, 'W')
         print('energy_int:', energy_int, 'Wh')
-
+        # if new commands received, add them into log
+        if start_stop_cmd_int != start_stop_cmd_old:
+            cur.execute(
+                "INSERT INTO sim_log values(DEFAULT,now(),'{}','start_stop_cmd_changed_from_{}_to_{}')".format(modbus_slave_ip,start_stop_cmd_old,start_stop_cmd_int))
+            start_stop_cmd_old = start_stop_cmd_int
+            conn.commit()
+        if active_power_sp_int != active_power_sp_old:
+            cur.execute(
+                "INSERT INTO sim_log values(DEFAULT,now(),'{}','active_power_setpoint_changed_from_{}_to_{}')".format(modbus_slave_ip,active_power_sp_old,active_power_sp_int))
+            active_power_sp_old = active_power_sp_int
+            conn.commit()
         # if stop command received, change P setpoint to zero. New P = P + (P_setpint-P)*Ramprate
         if start_stop_cmd_int == 0:
             active_power_int = int(
@@ -123,6 +139,8 @@ def pv_simulator():
         print('start_stop_status:', status_str[start_stop_status_int])
         print('--------------------------------')
         time.sleep(2)
+    cur.close()
+    conn.close()
 
 
 def int2C(data_type, value, endianness='big'):

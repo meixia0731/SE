@@ -48,7 +48,10 @@ def CB_SIMULATOR(modbus_slave_ip, cb_type):
     slave_1.set_values('C', 21190, 2)
     slave_1.set_values('D', 8871, 2)
     # Created a shared memory to talk with BESS controller
-    shm = shared_memory.SharedMemory(name=modbus_slave_ip,create=True, size=10)
+    try:
+        shm = shared_memory.SharedMemory(name=modbus_slave_ip,create=True, size=10)
+    except BaseException :
+        shm = shared_memory.SharedMemory(name=modbus_slave_ip, create=False, size=10)
     while True:
         # Read data from memory, convert it from machine code to int. These values are inputs of the simulator engine
         cb_status_int = slave_1.get_values('A', CB_Status_addr[0], 1)

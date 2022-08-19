@@ -17,11 +17,11 @@ modbus_slave_id = 1
 # --------------------------------------------------------------------
 # data points configuration, [modbus_address, data_type, length, initial_value]
 active_power_addr = [8069, 'uint64', 4, 0]
-reactive_power_addr = [8075, 'int64', 4, 10000]
-limitation_power_addr = [8085, 'uint32', 2, 30000]
+reactive_power_addr = [8075, 'int64', 4, 300]
+limitation_power_addr = [8085, 'uint32', 2, 300]
 start_stop_status_addr = [8067, 'uint16', 1, 1]
 start_stop_cmd_addr = [8002, 'uint16', 1, 1]
-active_power_sp_addr = [8005, 'uint32', 2, 30000]
+active_power_sp_addr = [8005, 'uint32', 2, 300]
 energy_addr = [8079, 'uint64', 4, 30000]
 # --------------------------------------------------------------------
 # Scaling
@@ -70,9 +70,11 @@ def pv_simulator():
     slave_1.set_values('B', active_power_sp_addr[0], active_power_sp_c)
     slave_1.set_values('A', energy_addr[0], energy_c)
 
-    # Connect to the memory
-    shm = shared_memory.SharedMemory(name=modbus_slave_ip_cb_pv, create=False, size=10)
     while True:
+        try:
+            shm = shared_memory.SharedMemory(name=modbus_slave_ip_cb_pv, create=True, size=10)
+        except BaseException:
+            shm = shared_memory.SharedMemory(name=modbus_slave_ip_cb_pv, create=False, size=10)
         print('--------------------------------')
         # Read data from slave memory, C structure
         active_power_c = slave_1.get_values('A', active_power_addr[0], active_power_addr[2])
@@ -103,12 +105,12 @@ def pv_simulator():
         # if new commands received, add them into log
         if start_stop_cmd_int != start_stop_cmd_old:
             cur.execute(
-                "INSERT INTO sim_log values(DEFAULT,now(),'{}','start_stop_cmd_changed_from_{}_to_{}')".format(modbus_slave_ip,start_stop_cmd_old,start_stop_cmd_int))
+                "INSERT INTO sim_log values(DEFAULT,now(),'{}','start_stop_cmd_changed_from_{}_to_{}')".format(modbus_slave_ip_pv,start_stop_cmd_old,start_stop_cmd_int))
             start_stop_cmd_old = start_stop_cmd_int
             conn.commit()
         if active_power_sp_int != active_power_sp_old:
             cur.execute(
-                "INSERT INTO sim_log values(DEFAULT,now(),'{}','active_power_setpoint_changed_from_{}_to_{}')".format(modbus_slave_ip,active_power_sp_old,active_power_sp_int))
+                "INSERT INTO sim_log values(DEFAULT,now(),'{}','active_power_setpoint_changed_from_{}_to_{}')".format(modbus_slave_ip_pv,active_power_sp_old,active_power_sp_int))
             active_power_sp_old = active_power_sp_int
             conn.commit()
         # if stop command received, change P setpoint to zero. New P = P + (P_setpint-P)*Ramprate
@@ -124,8 +126,22 @@ def pv_simulator():
             active_power_int = int(((min(active_power_sp_int,
                                          limitation_power_int) - active_power_int) * Ramp_rate_percentage + active_power_int) * random.uniform(
                 0.99, 1.01))
+            # if CB open, stop calculation
+        cb_status = shm.buf[0]
+        if cb_status == 4:
+            active_power_int = 0
         active_power_c = int2C(active_power_addr[1], active_power_int)
         slave_1.set_values('A', active_power_addr[0], active_power_c)
+        if active_power_int >= 0:
+            shm.buf[1] = 1
+            shm.buf[2] = int(active_power_int) // 255
+            shm.buf[3] = int(active_power_int) % 255
+        elif active_power_int < 0:
+            shm.buf[1] = 2
+            shm.buf[2] = ((-1)*int(active_power_int)) // 255
+            shm.buf[3] = ((-1)*int(active_power_int)) % 255
+        print('shm is :',shm.buf[1],shm.buf[2],shm.buf[3])
+        shm.close()
         # if stop command received AND active_power = 0, change status to Stopped; else change status to Started
         if start_stop_cmd_int == 0 and active_power_int == 0:
             start_stop_status_int = 0

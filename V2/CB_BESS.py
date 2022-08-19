@@ -1,11 +1,11 @@
 import time
 import modbus_tk.defines as cst
 import modbus_tk.modbus_tcp as modbus_tcp
-from multiprocessing import Process
 import datetime
 import psycopg2
 import random
 from multiprocessing import shared_memory
+import struct
 
 # ------------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@ Status = {4: 'Open', 5: 'Close'}
 
 def CB_SIMULATOR(modbus_slave_ip, cb_type):
     # Connect to the log database
-    conn = psycopg2.connect(dbname="microgrid", user="postgres",password="postgres", host="127.0.0.1", port="5432")
+    conn = psycopg2.connect(dbname="microgrid", user="postgres",password="postgres", host="172.168.200.1", port="5432")
     cur = conn.cursor()
     # Create the server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip, port=modbus_slave_port)
@@ -48,11 +48,11 @@ def CB_SIMULATOR(modbus_slave_ip, cb_type):
     slave_1.set_values('C', 21190, 2)
     slave_1.set_values('D', 8871, 2)
     # Created a shared memory to talk with BESS controller
-    try:
-        shm = shared_memory.SharedMemory(name=modbus_slave_ip,create=True, size=10)
-    except BaseException :
-        shm = shared_memory.SharedMemory(name=modbus_slave_ip, create=False, size=10)
     while True:
+        try:
+            shm = shared_memory.SharedMemory(name=modbus_slave_ip, create=True, size=10)
+        except BaseException:
+            shm = shared_memory.SharedMemory(name=modbus_slave_ip, create=False, size=10)
         # Read data from memory, convert it from machine code to int. These values are inputs of the simulator engine
         cb_status_int = slave_1.get_values('A', CB_Status_addr[0], 1)
         cb_cmd_int = slave_1.get_values('B', CB_Cmd_addr[0], 6)
@@ -75,17 +75,97 @@ def CB_SIMULATOR(modbus_slave_ip, cb_type):
             print(modbus_slave_ip, 'Close command executed', datetime.datetime.now())
         else:
             pass
+        # Save CB status to shared memory
         shm.buf[0] = cb_status_int[0]
         if cb_status_int[0] == 4:
             slave_1.set_values('A', P_addr[0], 0)
             slave_1.set_values('A', Q_addr[0], 0)
         elif cb_status_int[0] == 5:
             slave_1.set_values('A', Q_addr[0], int(Q_addr[1]*random.uniform(0.98, 1.02)))
-            p = 1000*shm.buf[1] + shm.buf[2]
-            slave_1.set_values('A', P_addr[0], p)
+            print([shm.buf[1],shm.buf[2],shm.buf[3]])
+            if shm.buf[1] == 1:
+                p = 1*(shm.buf[2]*255 + shm.buf[3])
+            elif shm.buf[1] == 2:
+                p = (-1)*(shm.buf[2] * 255 + shm.buf[3])
+            else:
+                p = 0
+            print(p)
+        Active_Power_c = int2C('int16', int(-1*p*10))
+        slave_1.set_values('A', P_addr[0], Active_Power_c)
         slave_1.set_values('A', CB_Status_addr[0], cb_status_int)
         slave_1.set_values('A', Voltage_addr[0], Voltage_addr[1])
-        time.sleep(0.1)
+        shm.close()
+        time.sleep(0.4)
+def int2C(data_type, value, endianness='big'):
+    if data_type == 'uint64':
+        value = struct.pack('>Q', value)
+        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0],
+                struct.unpack('>H', value[4:6])[0], struct.unpack('>H', value[6:8])[0]]
+    elif data_type == 'int64':
+        value = struct.pack('>q', value)
+        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0],
+                struct.unpack('>H', value[4:6])[0], struct.unpack('>H', value[6:8])[0]]
+    elif data_type == 'uint32':
+        value = struct.pack('>L', value)
+        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0]]
+    elif data_type == 'int32':
+        value = struct.pack('>l', value)
+        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0]]
+    elif data_type == 'uint16':
+        value = struct.pack('>H', value)
+        return [struct.unpack('>H', value[0:2])[0]]
+    elif data_type == 'int16':
+        value = struct.pack('>h', value)
+        return [struct.unpack('>H', value[0:2])[0]]
+    elif data_type == 'float16':
+        value = struct.pack('>e', value)
+        return [struct.unpack('>H', value[0:2])[0]]
+    elif data_type == 'float32':
+        value = struct.pack('>f', value)
+        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0]]
+    if data_type == 'float64':
+        value = struct.pack('>d', value)
+        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0],
+                struct.unpack('>H', value[4:6])[0], struct.unpack('>H', value[6:8])[0]]
+
+def C2int(data_type, value, endianness='big'):
+    bytes_value = b''
+    if data_type == 'uint64':
+        for i in value:
+            bytes_value = bytes_value + struct.pack('>H', i)
+        return struct.unpack('>Q', bytes_value)[0]
+    elif data_type == 'int64':
+        for i in value:
+            bytes_value = bytes_value + struct.pack('>H', i)
+        return struct.unpack('>q', bytes_value)[0]
+    elif data_type == 'uint32':
+        for i in value:
+            bytes_value = bytes_value + struct.pack('>H', i)
+        return struct.unpack('>L', bytes_value)[0]
+    elif data_type == 'int32':
+        for i in value:
+            bytes_value = bytes_value + struct.pack('>H', i)
+        return struct.unpack('>l', bytes_value)[0]
+    elif data_type == 'uint16':
+        for i in value:
+            bytes_value = struct.pack('>H', i)
+        return struct.unpack('>H', bytes_value)[0]
+    elif data_type == 'int16':
+        for i in value:
+            bytes_value = struct.pack('>H', i)
+        return struct.unpack('>h', bytes_value)[0]
+    elif data_type == 'float16':
+        for i in value:
+            bytes_value = struct.pack('>H', i)
+        return struct.unpack('>e', bytes_value)[0]
+    elif data_type == 'float32':
+        for i in value:
+            bytes_value = bytes_value + struct.pack('>H', i)
+        return struct.unpack('>f', bytes_value)[0]
+    elif data_type == 'float64':
+        for i in value:
+            bytes_value = bytes_value + struct.pack('>H', i)
+        return struct.unpack('>d', bytes_value)[0]
 
 
 if __name__ == "__main__":

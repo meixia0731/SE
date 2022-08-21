@@ -1,10 +1,11 @@
-import random
-import struct
 import time
-import psycopg2
-from multiprocessing import shared_memory
 import modbus_tk.defines as cst
 import modbus_tk.modbus_tcp as modbus_tcp
+import psycopg2
+import random
+from multiprocessing import shared_memory
+from data_type_converter import int2C as int2C
+from data_type_converter import C2int as C2int
 
 # --------------------------------------------------------------------
 # Listening IP address
@@ -142,10 +143,10 @@ def pv_simulator():
         slave_1.set_values('A', active_power_addr[0], active_power_c)
         # send active power to shared memory for CB simulator use
         active_power_memory = int2C('float32', active_power_int)
-        shm.buf[1] = active_power_memory[0]//256
-        shm.buf[2] = active_power_memory[0]%256
-        shm.buf[3] = active_power_memory[1]//256
-        shm.buf[4] = active_power_memory[1]%256
+        shm.buf[1] = active_power_memory[0] // 256
+        shm.buf[2] = active_power_memory[0] % 256
+        shm.buf[3] = active_power_memory[1] // 256
+        shm.buf[4] = active_power_memory[1] % 256
         shm.close()
         # if stop command received AND active_power = 0, change status to Stopped; else change status to Started
         if start_stop_cmd_int == 0 and active_power_int == 0:
@@ -162,81 +163,6 @@ def pv_simulator():
         print('start_stop_status:', status_str[start_stop_status_int])
         print('--------------------------------')
         time.sleep(2)
-    cur.close()
-    conn.close()
-
-
-def int2C(data_type, value, endianness='big'):
-    if data_type == 'uint64':
-        value = struct.pack('>Q', value)
-        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0],
-                struct.unpack('>H', value[4:6])[0], struct.unpack('>H', value[6:8])[0]]
-    elif data_type == 'int64':
-        value = struct.pack('>q', value)
-        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0],
-                struct.unpack('>H', value[4:6])[0], struct.unpack('>H', value[6:8])[0]]
-    elif data_type == 'uint32':
-        value = struct.pack('>L', value)
-        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0]]
-    elif data_type == 'int32':
-        value = struct.pack('>l', value)
-        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0]]
-    elif data_type == 'uint16':
-        value = struct.pack('>H', value)
-        return [struct.unpack('>H', value[0:2])[0]]
-    elif data_type == 'int16':
-        value = struct.pack('>h', value)
-        return [struct.unpack('>H', value[0:2])[0]]
-    elif data_type == 'float16':
-        value = struct.pack('>e', value)
-        return [struct.unpack('>H', value[0:2])[0]]
-    elif data_type == 'float32':
-        value = struct.pack('>f', value)
-        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0]]
-    if data_type == 'float64':
-        value = struct.pack('>d', value)
-        return [struct.unpack('>H', value[0:2])[0], struct.unpack('>H', value[2:4])[0],
-                struct.unpack('>H', value[4:6])[0], struct.unpack('>H', value[6:8])[0]]
-
-
-def C2int(data_type, value, endianness='big'):
-    bytes_value = b''
-    if data_type == 'uint64':
-        for i in value:
-            bytes_value = bytes_value + struct.pack('>H', i)
-        return struct.unpack('>Q', bytes_value)[0]
-    elif data_type == 'int64':
-        for i in value:
-            bytes_value = bytes_value + struct.pack('>H', i)
-        return struct.unpack('>q', bytes_value)[0]
-    elif data_type == 'uint32':
-        for i in value:
-            bytes_value = bytes_value + struct.pack('>H', i)
-        return struct.unpack('>L', bytes_value)[0]
-    elif data_type == 'int32':
-        for i in value:
-            bytes_value = bytes_value + struct.pack('>H', i)
-        return struct.unpack('>l', bytes_value)[0]
-    elif data_type == 'uint16':
-        for i in value:
-            bytes_value = struct.pack('>H', i)
-        return struct.unpack('>H', bytes_value)[0]
-    elif data_type == 'int16':
-        for i in value:
-            bytes_value = struct.pack('>H', i)
-        return struct.unpack('>h', bytes_value)[0]
-    elif data_type == 'float16':
-        for i in value:
-            bytes_value = struct.pack('>H', i)
-        return struct.unpack('>e', bytes_value)[0]
-    elif data_type == 'float32':
-        for i in value:
-            bytes_value = bytes_value + struct.pack('>H', i)
-        return struct.unpack('>f', bytes_value)[0]
-    elif data_type == 'float64':
-        for i in value:
-            bytes_value = bytes_value + struct.pack('>H', i)
-        return struct.unpack('>d', bytes_value)[0]
 
 
 if __name__ == "__main__":

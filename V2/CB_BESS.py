@@ -10,7 +10,7 @@ from multiprocessing import shared_memory
 # ------------------------------------------------------------------------------
 # Configuration:
 # Listening IP address
-modbus_slave_ip_cb_pv = "172.168.200.3"
+modbus_slave_ip_cb_bess = "172.168.200.4"
 # Listening port
 modbus_slave_port = 502
 # Listening slave ID
@@ -105,4 +105,4 @@ def cb_simulator(modbus_slave_ip, cb_type):
 
 
 if __name__ == "__main__":
-    cb_simulator(modbus_slave_ip_cb_pv, 'MTZ2')
+    cb_simulator(modbus_slave_ip_cb_bess, 'MTZ2')

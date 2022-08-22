@@ -29,7 +29,7 @@ Current_I3 = [83, 'float32', 2, 3]
 Active_Power = [59, 'float32', 2, 100]
 Reactive_Power = [61, 'float32', 2, -100]
 Frequency = [65, 'float32', 2, 50]
-SOC = [523, 'float32', 2, 50]
+SOC = [523, 'float32', 2, 100]
 # Control commands
 Start_cmd = [2100, 'uint16', 1, 1]
 Stop_cmd = [2101, 'uint16', 1, 0]
@@ -41,7 +41,8 @@ P_disable_cmd = [2106, 'uint16', 1, 0]
 # Active power setpoint
 SP_cmd = [2151, 'float32', 2, 30]
 SP_cmd_f = [2337, 'float32', 2, -30]
-
+# Energy
+energy = [89, 'float32', 2, 3]
 # Status
 Running = 1
 Starting = 0
@@ -63,7 +64,7 @@ Reg_4_int = Alarms_Healthy * 512 + AC_CB_Closed * 256 + Operator_Mode_Active * 1
 Reg_4 = [4, 'uint16', 1, Reg_4_int]
 Reg_5 = [5, 'uint16', 1, 4096]
 
-Max_charge_power = [185, 'float32', 2, 300]
+Max_charge_power = [185, 'float32', 2, 200]
 Max_discharge_power = [187, 'float32', 2, 300]
 # Status_1
 # Start_Status
@@ -116,8 +117,8 @@ Ramp_rate_percentage = 0.3
 def bess_simulator():
     active_power_sp_old = 0
     # Connect to the log database
-    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
-    cur = conn.cursor()
+#    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
+#    cur = conn.cursor()
     # Create the server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip_bess, port=modbus_slave_port)
     server.start()
@@ -147,6 +148,9 @@ def bess_simulator():
     slave_1.set_values('A', Reactive_Power[0], reactive_power_c)
     frequency_c = int2C(Frequency[1], Frequency[3])
     slave_1.set_values('A', Frequency[0], frequency_c)
+    # Energy initialization
+    energy_c = int2C(energy[1], energy[3])
+    slave_1.set_values('A', energy[0], energy_c)
     # SOC initialization
     soc_c = int2C(SOC[1], SOC[3])
     slave_1.set_values('A', SOC[0], soc_c)
@@ -212,12 +216,12 @@ def bess_simulator():
         # Read SP_cmd from slave memory, C structure
         sp_cmd_c = slave_1.get_values('A', SP_cmd[0], SP_cmd[2])
         sp_cmd_int = C2int(SP_cmd[1], sp_cmd_c)
-        if sp_cmd_int != active_power_sp_old:
-            cur.execute(
-                "INSERT INTO sim_log values(DEFAULT,now(),'{}','active_power_setpoint_changed_from_{}_to_{}')".format(
-                    modbus_slave_ip_bess, active_power_sp_old, sp_cmd_int))
-            active_power_sp_old = sp_cmd_int
-            conn.commit()
+ #       if sp_cmd_int != active_power_sp_old:
+ #           cur.execute(
+ #               "INSERT INTO sim_log values(DEFAULT,now(),'{}','active_power_setpoint_changed_from_{}_to_{}')".format(
+ #                   modbus_slave_ip_bess, active_power_sp_old, sp_cmd_int))
+ #           active_power_sp_old = sp_cmd_int
+ #           conn.commit()
         # Read status from slave memory, C structure
         reg_4_c = slave_1.get_values('A', Reg_4[0], Reg_4[2])
         reg_4_int = C2int(Reg_4[1], reg_4_c)
@@ -331,8 +335,8 @@ def bess_simulator():
         if active_power_int == 0:
             current_i1_int = 0
         else:
-            current_i1_int = 1.732 * active_power_int / (3 * voltage_v12_int)
-        current_i1_c = int2C(SOC[1], current_i1_int)
+            current_i1_int = 1000*1.732 * active_power_int / (3 * voltage_v12_int)
+        current_i1_c = int2C(Current_I1[1], current_i1_int)
         slave_1.set_values('A', Current_I1[0], current_i1_c)
         slave_1.set_values('A', Current_I2[0], current_i1_c)
         slave_1.set_values('A', Current_I3[0], current_i1_c)

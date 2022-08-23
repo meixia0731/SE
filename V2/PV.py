@@ -23,8 +23,8 @@ active_power_addr = [8069, 'uint64', 4, 0]
 reactive_power_addr = [8075, 'int64', 4, 300]
 limitation_power_addr = [8085, 'uint32', 2, 300]
 start_stop_status_addr = [8067, 'uint16', 1, 1]
-start_stop_cmd_addr = [8002, 'uint16', 1, 1]
-active_power_sp_addr = [8005, 'uint32', 2, 300]
+start_stop_cmd_addr = [8001, 'uint16', 1, 1]
+active_power_sp_addr = [8002, 'uint32', 2, 300]
 energy_addr = [8079, 'uint64', 4, 30000]
 # --------------------------------------------------------------------
 # Scaling, not in use

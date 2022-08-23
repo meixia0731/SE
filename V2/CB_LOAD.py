@@ -102,7 +102,7 @@ def cb_simulator(modbus_slave_ip, cb_type):
         slave_1.set_values('A', active_power_addr[0], active_power_c)
         # Close the link to shared memory
         # timer for next cycle
-        active_power_memory = int2C('float32', scaling_cb*active_power_int)
+        active_power_memory = int2C('float32', active_power_int)
         shm.buf[1] = active_power_memory[0] // 256
         shm.buf[2] = active_power_memory[0] % 256
         shm.buf[3] = active_power_memory[1] // 256

@@ -105,7 +105,7 @@ def cb_simulator(modbus_slave_ip, cb_type):
         # Save CB status to shared memory, data type is int8
         shm_cb_utility.buf[0] = cb_status_int
         if cb_status_int == 4:
-            active_power_int = 0
+            active_power_utility_int = 0
         else:
             active_power_load_c = [shm_cb_load.buf[1] * 256 + shm_cb_load.buf[2], shm_cb_load.buf[3] * 256 + shm_cb_load.buf[4]]
             active_power_load_int = C2int('float32', active_power_load_c)
@@ -115,7 +115,11 @@ def cb_simulator(modbus_slave_ip, cb_type):
             active_power_pv_int = C2int('float32', active_power_pv_c)
             active_power_bess_c = [shm_cb_bess.buf[1] * 256 + shm_cb_bess.buf[2], shm_cb_bess.buf[3] * 256 + shm_cb_bess.buf[4]]
             active_power_bess_int = C2int('float32', active_power_bess_c)
-        active_power_utility_int = (active_power_load_int - active_power_chp_int - active_power_pv_int - active_power_bess_int)/10
+            print(active_power_load_int)
+            print(active_power_chp_int)
+            print(active_power_pv_int)
+            print(active_power_bess_int)
+            active_power_utility_int = (active_power_load_int + active_power_chp_int + active_power_pv_int + active_power_bess_int)/10
         active_power_c = int2C(active_power_addr[1], active_power_utility_int)
         # Update new CB status to Modbus register
         slave_1.set_values('A', active_power_addr[0], active_power_c)
@@ -123,4 +127,4 @@ def cb_simulator(modbus_slave_ip, cb_type):
 
 
 if __name__ == "__main__":
-    cb_simulator(modbus_slave_ip_cb_load, 'MTZ2')
+    cb_simulator(modbus_slave_ip_cb_utility, 'MTZ2')

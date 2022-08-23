@@ -10,9 +10,9 @@ from multiprocessing import shared_memory
 # ------------------------------------------------------------------------------
 # Configuration:
 # Listening IP address
-modbus_slave_ip_pv = '172.168.200.8'
+modbus_slave_ip_chp = '172.168.200.9'
 # PV_CB address. PV will get CB status from this memory and send P to this memory
-modbus_slave_ip_cb_pv = "172.168.200.3"
+modbus_slave_ip_cb_chp = "172.168.200.5"
 # Listening port
 modbus_slave_port = 502
 # Listening slave ID
@@ -93,7 +93,6 @@ def cb_simulator(modbus_slave_ip, cb_type):
         # Save CB status to shared memory, data type is int8
         shm.buf[0] = cb_status_int
         # Read active power from shared memory, float32
-        print('memory:',shm, shm.buf[1], shm.buf[2], shm.buf[3], shm.buf[4])
         active_power_c = [shm.buf[1] * 256 + shm.buf[2], shm.buf[3] * 256 + shm.buf[4]]
         # Convert active power from float32 to int
         active_power_int = C2int('float32', active_power_c)
@@ -107,4 +106,4 @@ def cb_simulator(modbus_slave_ip, cb_type):
 
 
 if __name__ == "__main__":
-    cb_simulator(modbus_slave_ip_cb_pv, 'MTZ2')
+    cb_simulator(modbus_slave_ip_cb_chp, 'MTZ2')

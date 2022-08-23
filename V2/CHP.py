@@ -12,20 +12,25 @@ from data_type_converter import C2int as C2int
 modbus_slave_ip_chp = '172.168.200.9'
 # PV_CB address. PV will get CB status from this memory and send P to this memory
 modbus_slave_ip_cb_chp = "172.168.200.5"
+scaling_cb = -10
 # Listening port
 modbus_slave_port = 502
 # Listening slave ID
 modbus_slave_id = 1
 # --------------------------------------------------------------------
 # Modbus data points configuration, [modbus_address, data_type, length, initial_value]
-active_power_sp_addr = [1030, 'uint16', 1, ]
-start_stop_cmd_addr = [1025, 'int16', 1, 0]
-start_status_addr = [36.5, 'int16', 1, 0]
-remote_mode_addr = [36.8, 'int16', 1, 1]
-stop_status_addr = [38.3, 'int16', 1, 1]
-active_power_addr = [48, 'int16', 1, 0]
+active_power_sp_addr = [1030, 'uint16', 1, 100]
+start_stop_cmd_addr = [1025, 'int16', 1, 1]
+# 36.5
+start_status_addr = [36, 'int16', 1, 32]
+#36.8
+remote_mode_addr = [36, 'int16', 1, 256]
+# 38.3
+stop_status_addr = [38, 'int16', 1, 8]
+active_power_addr = [48, 'int16', 1, 30]
 health_addr = [1.7, 'int16', 1, 0]
 energy_addr = [50, 'uint32', 2, 0]
+capacity = 360
 # --------------------------------------------------------------------
 # Scaling, not in use
 # --------------------------------------------------------------------
@@ -41,9 +46,9 @@ status_str = {0: 'Stopped', 1: 'Started'}
 def chp_simulator():
     start_stop_cmd_old = 0
     active_power_sp_old = 0
-    # Connect to the log database
-    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
-    cur = conn.cursor()
+    # # Connect to the log database
+    # conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
+    # cur = conn.cursor()
     # Create the modbus slave server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip_chp, port=modbus_slave_port)
     # Start the modbus slave server
@@ -51,17 +56,17 @@ def chp_simulator():
     # Create the modbus slave instance
     slave_1 = server.add_slave(modbus_slave_id)
     # Create two data block, A for function code 4, B for function code 3.
-    slave_1.add_block('A', cst.ANALOG_INPUTS, 1, 1000)
+    slave_1.add_block('A', cst.HOLDING_REGISTERS, 1, 2000)
     # Initialization, convert data to C structure
     active_power_sp_c = int2C(active_power_sp_addr[1], active_power_sp_addr[3])
     start_stop_cmd_c = int2C(start_stop_cmd_addr[1], start_stop_cmd_addr[3])
     active_power_c = int2C(active_power_addr[1], active_power_addr[3])
-
+    energy_addr_c = int2C(energy_addr[1], energy_addr[3])
     # Send above C structure data to memory. Then Modbus client can read the default value from these addresses.
-    slave_1.set_values('A', active_power_addr[0], active_power_sp_c)
+    slave_1.set_values('A', active_power_sp_addr[0], active_power_sp_c)
     slave_1.set_values('A', start_stop_cmd_addr[0], start_stop_cmd_c)
     slave_1.set_values('A', active_power_addr[0], active_power_c)
-
+    slave_1.set_values('A', energy_addr[0], energy_addr_c)
     # Logic engine starts from here
     while True:
         # Create or attach to the PV_CB memory to exchange CB status and P.
@@ -77,50 +82,63 @@ def chp_simulator():
         active_power_sp_c = slave_1.get_values('A', active_power_sp_addr[0], active_power_sp_addr[2])
         start_stop_cmd_c = slave_1.get_values('A', start_stop_cmd_addr[0], start_stop_cmd_addr[2])
         active_power_c = slave_1.get_values('A', active_power_addr[0], active_power_addr[2])
-
+        energy_addr_c = slave_1.get_values('A', energy_addr[0], energy_addr[2])
 
         # Convert C structure to INT, as engine inputs
         active_power_sp_int = C2int(active_power_sp_addr[1], active_power_sp_c)
         start_stop_cmd_int = C2int(start_stop_cmd_addr[1], start_stop_cmd_c)
         active_power_int = C2int(active_power_addr[1], active_power_c)
-
+        energy_addr_int = C2int(energy_addr[1], energy_addr_c)
         # Print logic inputs of this circle
         print('Engine Inputs:')
-        print('active_power_etpoint:', active_power_int, 'kW')
+        print('active_power_setpoint:', active_power_sp_int, '%')
         print('Start_Stop Command:', start_stop_cmd_int, )
-        print('active_powerSetpoint:', active_power_int, 'kW')
-
+        print('active_power_measurement:', active_power_int, 'kW')
+        print('energy:', energy_addr_int, 'kWh')
 
         # if new start or stop command received, add them into log database
-        if start_stop_cmd_int != start_stop_cmd_old:
-            cur.execute(
-                "INSERT INTO sim_log values(DEFAULT,now(),'{}','start_stop_cmd_changed_from_{}_to_{}')".format(
-                    modbus_slave_ip_chp, start_stop_cmd_old, start_stop_cmd_int))
-            start_stop_cmd_old = start_stop_cmd_int
-            conn.commit()
+        # if start_stop_cmd_int != start_stop_cmd_old:
+        #     cur.execute(
+        #         "INSERT INTO sim_log values(DEFAULT,now(),'{}','start_stop_cmd_changed_from_{}_to_{}')".format(
+        #             modbus_slave_ip_chp, start_stop_cmd_old, start_stop_cmd_int))
+        #     start_stop_cmd_old = start_stop_cmd_int
+        #     conn.commit()
         # if new setpoint received, add them into log database
-        if active_power_sp_int != active_power_sp_old:
-            cur.execute(
-                "INSERT INTO sim_log values(DEFAULT,now(),'{}','active_power_setpoint_changed_from_{}_to_{}')".format(
-                    modbus_slave_ip_chp, active_power_sp_old, active_power_sp_int))
-            active_power_sp_old = active_power_sp_int
-            conn.commit()
+        # if active_power_sp_int != active_power_sp_old:
+        #     cur.execute(
+        #         "INSERT INTO sim_log values(DEFAULT,now(),'{}','active_power_setpoint_changed_from_{}_to_{}')".format(
+        #             modbus_slave_ip_chp, active_power_sp_old, active_power_sp_int))
+        #     active_power_sp_old = active_power_sp_int
+        #     conn.commit()
 
         # if stop command received, change P setpoint to zero. New P = P + (P_setpint-P)*Ramp_rate
         if start_stop_cmd_int == 0:
             active_power_int = 0
+            start_status_int = 256
+            stop_status_int = 8
         elif start_stop_cmd_int == 1:
-            active_power_int = active_power_sp_int
+            start_status_int = 288
+            stop_status_int = 0
+            active_power_int = int(active_power_sp_int*capacity/100)
         else:
+            start_status_int = 288
+            stop_status_int = 0
             print('cmd input out of range, 0 for stop, 1 for start')
+        start_status_c = int2C(start_status_addr[1], start_status_int)
+        slave_1.set_values('A', start_status_addr[0], start_status_c)
+        stop_status_c = int2C(stop_status_addr[1], stop_status_int)
+        slave_1.set_values('A', stop_status_addr[0], stop_status_c)
         # if CB open, force active power to zero.
         cb_status = shm.buf[0]
         if cb_status == 4:
             active_power_int = 0
         active_power_c = int2C(active_power_addr[1], active_power_int)
         slave_1.set_values('A', active_power_addr[0], active_power_c)
+        # Update energy
+        energy_addr_c = int2C(energy_addr[1], int(energy_addr_int + active_power_int/100))
+        slave_1.set_values('A', energy_addr[0], energy_addr_c)
         # send active power to shared memory for CB simulator use
-        active_power_memory = int2C('float32', active_power_int)
+        active_power_memory = int2C('float32', scaling_cb*active_power_int)
         shm.buf[1] = active_power_memory[0] // 256
         shm.buf[2] = active_power_memory[0] % 256
         shm.buf[3] = active_power_memory[1] // 256

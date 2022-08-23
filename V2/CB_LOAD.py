@@ -10,9 +10,9 @@ from multiprocessing import shared_memory
 # ------------------------------------------------------------------------------
 # Configuration:
 # Listening IP address
-modbus_slave_ip_pv = '172.168.200.8'
-# PV_CB address. PV will get CB status from this memory and send P to this memory
-modbus_slave_ip_cb_pv = "172.168.200.3"
+modbus_slave_ip_cb_load = "172.168.200.2"
+load = 500
+scaling_cb = 10
 # Listening port
 modbus_slave_port = 502
 # Listening slave ID
@@ -94,17 +94,21 @@ def cb_simulator(modbus_slave_ip, cb_type):
         shm.buf[0] = cb_status_int
         # Read active power from shared memory, float32
         print('memory:',shm, shm.buf[1], shm.buf[2], shm.buf[3], shm.buf[4])
-        active_power_c = [shm.buf[1] * 256 + shm.buf[2], shm.buf[3] * 256 + shm.buf[4]]
         # Convert active power from float32 to int
-        active_power_int = C2int('float32', active_power_c)
+        active_power_int = load*scaling_cb
         # Convert active power from int to C structure(int16)
         active_power_c = int2C(active_power_addr[1], active_power_int)
         # Update new CB status to Modbus register
         slave_1.set_values('A', active_power_addr[0], active_power_c)
         # Close the link to shared memory
         # timer for next cycle
+        active_power_memory = int2C('float32', scaling_cb*active_power_int)
+        shm.buf[1] = active_power_memory[0] // 256
+        shm.buf[2] = active_power_memory[0] % 256
+        shm.buf[3] = active_power_memory[1] // 256
+        shm.buf[4] = active_power_memory[1] % 256
         time.sleep(0.4)
 
 
 if __name__ == "__main__":
-    cb_simulator(modbus_slave_ip_cb_pv, 'MTZ2')
+    cb_simulator(modbus_slave_ip_cb_load, 'MTZ2')

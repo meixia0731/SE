@@ -12,6 +12,7 @@ from data_type_converter import C2int as C2int
 modbus_slave_ip_pv = '172.168.200.8'
 # PV_CB address. PV will get CB status from this memory and send P to this memory
 modbus_slave_ip_cb_pv = "172.168.200.3"
+scaling_cb = -10
 # Listening port
 modbus_slave_port = 502
 # Listening slave ID
@@ -142,12 +143,12 @@ def pv_simulator():
         active_power_c = int2C(active_power_addr[1], active_power_int)
         slave_1.set_values('A', active_power_addr[0], active_power_c)
         # send active power to shared memory for CB simulator use
-        active_power_memory = int2C('float32', active_power_int)
+        active_power_memory = int2C('float32', scaling_cb*active_power_int)
         shm.buf[1] = active_power_memory[0] // 256
         shm.buf[2] = active_power_memory[0] % 256
         shm.buf[3] = active_power_memory[1] // 256
         shm.buf[4] = active_power_memory[1] % 256
-        shm.close()
+        print('memory:',shm, shm.buf[1], shm.buf[2], shm.buf[3], shm.buf[4])
         # if stop command received AND active_power = 0, change status to Stopped; else change status to Started
         if start_stop_cmd_int == 0 and active_power_int == 0:
             start_stop_status_int = 0

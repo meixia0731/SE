@@ -10,6 +10,7 @@ from data_type_converter import C2int as C2int
 # Listening IP address
 modbus_slave_ip_bess = '172.168.200.7'
 modbus_slave_ip_cb_bess = '172.168.200.4'
+scaling_cb = -10
 # Listening port
 modbus_slave_port = 502
 # Listening slave ID
@@ -42,7 +43,7 @@ P_disable_cmd = [2106, 'uint16', 1, 0]
 SP_cmd = [2151, 'float32', 2, 30]
 SP_cmd_f = [2337, 'float32', 2, -30]
 # Energy
-energy = [89, 'float32', 2, 3]
+energy = [89, 'float32', 2, 33]
 # Status
 Running = 1
 Starting = 0
@@ -289,13 +290,12 @@ def bess_simulator():
         active_power_c = int2C(Active_Power[1], active_power_int)
         slave_1.set_values('A', Active_Power[0], active_power_c)
         # send active power to shared memory for CB simulator use
-        active_power_memory = int2C('float32', active_power_int)
+        active_power_memory = int2C('float32', scaling_cb*active_power_int)
         shm.buf[1] = active_power_memory[0] // 256
         shm.buf[2] = active_power_memory[0] % 256
         shm.buf[3] = active_power_memory[1] // 256
         shm.buf[4] = active_power_memory[1] % 256
-        print('memory:', shm.buf[1], shm.buf[2], shm.buf[3], shm.buf[4])
-        shm.close()
+        print('memory:',shm, shm.buf[1], shm.buf[2], shm.buf[3], shm.buf[4])
         SP_cmd_f_c = int2C(SP_cmd_f[1], sp_cmd_int)
         slave_1.set_values('A', SP_cmd_f[0], SP_cmd_f_c)
         print(list(map(int, list(bin(reg_4_int))[2:])))

@@ -41,8 +41,8 @@ def pv_simulator():
     start_stop_cmd_old = 0
     active_power_sp_old = 0
     # Connect to the log database
-    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
-    cur = conn.cursor()
+    # conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
+    # cur = conn.cursor()
     # Create the modbus slave server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip_pv, port=modbus_slave_port)
     # Start the modbus slave server
@@ -108,19 +108,19 @@ def pv_simulator():
         print('energy_int:', energy_int, 'Wh')
 
         # if new start or stop command received, add them into log database
-        if start_stop_cmd_int != start_stop_cmd_old:
-            cur.execute(
-                "INSERT INTO sim_log values(DEFAULT,now(),'{}','start_stop_cmd_changed_from_{}_to_{}')".format(
-                    modbus_slave_ip_pv, start_stop_cmd_old, start_stop_cmd_int))
-            start_stop_cmd_old = start_stop_cmd_int
-            conn.commit()
+        # if start_stop_cmd_int != start_stop_cmd_old:
+        #     cur.execute(
+        #         "INSERT INTO sim_log values(DEFAULT,now(),'{}','start_stop_cmd_changed_from_{}_to_{}')".format(
+        #             modbus_slave_ip_pv, start_stop_cmd_old, start_stop_cmd_int))
+        #     start_stop_cmd_old = start_stop_cmd_int
+        #     conn.commit()
         # if new setpoint received, add them into log database
-        if active_power_sp_int != active_power_sp_old:
-            cur.execute(
-                "INSERT INTO sim_log values(DEFAULT,now(),'{}','active_power_setpoint_changed_from_{}_to_{}')".format(
-                    modbus_slave_ip_pv, active_power_sp_old, active_power_sp_int))
-            active_power_sp_old = active_power_sp_int
-            conn.commit()
+        # if active_power_sp_int != active_power_sp_old:
+        #     cur.execute(
+        #         "INSERT INTO sim_log values(DEFAULT,now(),'{}','active_power_setpoint_changed_from_{}_to_{}')".format(
+        #             modbus_slave_ip_pv, active_power_sp_old, active_power_sp_int))
+        #     active_power_sp_old = active_power_sp_int
+        #     conn.commit()
 
         # if stop command received, change P setpoint to zero. New P = P + (P_setpint-P)*Ramp_rate
         if start_stop_cmd_int == 0:

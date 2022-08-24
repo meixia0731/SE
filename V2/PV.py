@@ -21,7 +21,7 @@ modbus_slave_id = 1
 # Modbus data points configuration, [modbus_address, data_type, length, initial_value]
 active_power_addr = [8069, 'uint64', 4, 0]
 reactive_power_addr = [8075, 'int64', 4, 300]
-limitation_power_addr = [8085, 'uint32', 2, 300]
+limitation_power_addr = [8085, 'uint32', 2, 770]
 start_stop_status_addr = [8067, 'uint16', 1, 1]
 start_stop_cmd_addr = [8001, 'uint16', 1, 1]
 active_power_sp_addr = [8002, 'uint32', 2, 300]
@@ -42,8 +42,8 @@ def pv_simulator():
     start_stop_cmd_old = 0
     active_power_sp_old = 0
     # Connect to the log database
-    # conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
-    # cur = conn.cursor()
+    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
+    cur = conn.cursor()
     # Create the modbus slave server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip_pv, port=modbus_slave_port)
     # Start the modbus slave server
@@ -69,16 +69,16 @@ def pv_simulator():
     slave_1.set_values('B', start_stop_cmd_addr[0], start_stop_cmd_c)
     slave_1.set_values('B', active_power_sp_addr[0], active_power_sp_c)
     slave_1.set_values('A', energy_addr[0], energy_c)
+    # Create or attach to the PV_CB memory to exchange CB status and P.
+    # PV simulator get CB status from PV_CB memory. PV_CB simulator get P from PV simulator
+    try:
+        # if PV_CB memory does not exist, create it
+        shm = shared_memory.SharedMemory(name=modbus_slave_ip_cb_pv, create=True, size=10)
+    except BaseException:
+        # if PV_CB memory exist, load it
+        shm = shared_memory.SharedMemory(name=modbus_slave_ip_cb_pv, create=False, size=10)
     # Logic engine starts from here
     while True:
-        # Create or attach to the PV_CB memory to exchange CB status and P.
-        # PV simulator get CB status from PV_CB memory. PV_CB simulator get P from PV simulator
-        try:
-            # if PV_CB memory does not exist, create it
-            shm = shared_memory.SharedMemory(name=modbus_slave_ip_cb_pv, create=True, size=10)
-        except BaseException:
-            # if PV_CB memory exist, load it
-            shm = shared_memory.SharedMemory(name=modbus_slave_ip_cb_pv, create=False, size=10)
         print('--------------------------------')
         # Read below data from slave memory, C structure
         active_power_c = slave_1.get_values('A', active_power_addr[0], active_power_addr[2])
@@ -109,19 +109,19 @@ def pv_simulator():
         print('energy_int:', energy_int, 'Wh')
 
         # if new start or stop command received, add them into log database
-        # if start_stop_cmd_int != start_stop_cmd_old:
-        #     cur.execute(
-        #         "INSERT INTO sim_log values(DEFAULT,now(),'{}','start_stop_cmd_changed_from_{}_to_{}')".format(
-        #             modbus_slave_ip_pv, start_stop_cmd_old, start_stop_cmd_int))
-        #     start_stop_cmd_old = start_stop_cmd_int
-        #     conn.commit()
+        if start_stop_cmd_int != start_stop_cmd_old:
+            cur.execute(
+                "INSERT INTO Control values(DEFAULT,now(),'{}','PV_start_stop_cmd_changed_from_{}_to_{}')".format(
+                    modbus_slave_ip_pv, start_stop_cmd_old, start_stop_cmd_int))
+            start_stop_cmd_old = start_stop_cmd_int
+            conn.commit()
         # if new setpoint received, add them into log database
-        # if active_power_sp_int != active_power_sp_old:
-        #     cur.execute(
-        #         "INSERT INTO sim_log values(DEFAULT,now(),'{}','active_power_setpoint_changed_from_{}_to_{}')".format(
-        #             modbus_slave_ip_pv, active_power_sp_old, active_power_sp_int))
-        #     active_power_sp_old = active_power_sp_int
-        #     conn.commit()
+        if active_power_sp_int != active_power_sp_old:
+            cur.execute(
+                "INSERT INTO Control values(DEFAULT,now(),'{}','PV_active_power_setpoint_changed_from_{}_to_{}')".format(
+                    modbus_slave_ip_pv, active_power_sp_old, active_power_sp_int))
+            active_power_sp_old = active_power_sp_int
+            conn.commit()
 
         # if stop command received, change P setpoint to zero. New P = P + (P_setpint-P)*Ramp_rate
         if start_stop_cmd_int == 0:

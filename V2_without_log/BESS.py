@@ -78,8 +78,8 @@ Ramp_rate_percentage = 0.3
 def bess_simulator():
     active_power_sp_old = 0
     # Connect to the log database
-    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
-    cur = conn.cursor()
+    # conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
+    # cur = conn.cursor()
     # Create the server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip_bess, port=modbus_slave_port)
     server.start()
@@ -177,12 +177,12 @@ def bess_simulator():
         # Read SP_cmd from slave memory, C structure
         sp_cmd_c = slave_1.get_values('A', SP_cmd[0], SP_cmd[2])
         sp_cmd_int = C2int(SP_cmd[1], sp_cmd_c)
-        if sp_cmd_int != active_power_sp_old:
-            cur.execute(
-                "INSERT INTO Control values(DEFAULT,now(),'{}','BESS_active_power_setpoint_changed_from_{}_to_{}')".format(
-                    modbus_slave_ip_bess, active_power_sp_old, sp_cmd_int))
-            active_power_sp_old = sp_cmd_int
-            conn.commit()
+        # if sp_cmd_int != active_power_sp_old:
+        #     cur.execute(
+        #         "INSERT INTO Control values(DEFAULT,now(),'{}','BESS_active_power_setpoint_changed_from_{}_to_{}')".format(
+        #             modbus_slave_ip_bess, active_power_sp_old, sp_cmd_int))
+        #     active_power_sp_old = sp_cmd_int
+        #     conn.commit()
         # Read status from slave memory, C structure
         reg_4_c = slave_1.get_values('A', Reg_4[0], Reg_4[2])
         reg_4_int = C2int(Reg_4[1], reg_4_c)

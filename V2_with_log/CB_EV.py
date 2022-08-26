@@ -10,8 +10,9 @@ from multiprocessing import shared_memory
 # ------------------------------------------------------------------------------
 # Configuration:
 # Listening IP address
-modbus_slave_ip_bess = '172.168.200.7'
-modbus_slave_ip_cb_bess = '172.168.200.4'
+modbus_slave_ip_cb_load = "172.168.200.10"
+load = 500
+scaling_cb = 10
 # Listening port
 modbus_slave_port = 502
 # Listening slave ID
@@ -34,7 +35,7 @@ status = {4: 'Open', 5: 'Close'}
 
 def cb_simulator(modbus_slave_ip, cb_type):
     # Connect to the log database
-    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
+    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="192.9.163.61", port="5432")
     cur = conn.cursor()
     # Create the server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip, port=modbus_slave_port)
@@ -92,18 +93,22 @@ def cb_simulator(modbus_slave_ip, cb_type):
         # Save CB status to shared memory, data type is int8
         shm.buf[0] = cb_status_int
         # Read active power from shared memory, float32
-        active_power_c = [shm.buf[1] * 256 + shm.buf[2], shm.buf[3] * 256 + shm.buf[4]]
         print('memory:',shm, shm.buf[1], shm.buf[2], shm.buf[3], shm.buf[4])
         # Convert active power from float32 to int
-        active_power_int = C2int('float32', active_power_c)
+        active_power_int = load*scaling_cb
         # Convert active power from int to C structure(int16)
         active_power_c = int2C(active_power_addr[1], active_power_int)
         # Update new CB status to Modbus register
         slave_1.set_values('A', active_power_addr[0], active_power_c)
         # Close the link to shared memory
         # timer for next cycle
+        active_power_memory = int2C('float32', active_power_int)
+        shm.buf[1] = active_power_memory[0] // 256
+        shm.buf[2] = active_power_memory[0] % 256
+        shm.buf[3] = active_power_memory[1] // 256
+        shm.buf[4] = active_power_memory[1] % 256
         time.sleep(0.4)
 
 
 if __name__ == "__main__":
-    cb_simulator(modbus_slave_ip_cb_bess, 'MTZ2')
+    cb_simulator(modbus_slave_ip_cb_load, 'NSX')

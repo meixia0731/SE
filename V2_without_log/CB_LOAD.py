@@ -35,8 +35,8 @@ status = {4: 'Open', 5: 'Close'}
 
 def cb_simulator(modbus_slave_ip, cb_type):
     # Connect to the log database
-    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
-    cur = conn.cursor()
+    # conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
+    # cur = conn.cursor()
     # Create the server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip, port=modbus_slave_port)
     # Start the server
@@ -68,10 +68,10 @@ def cb_simulator(modbus_slave_ip, cb_type):
         if cb_cmd_int == (904, 10, cb[cb_type], 1, 13107, 13107):
             cb_status_int = 4
             print(modbus_slave_ip, 'Open command received:', datetime.datetime.now())
-            cur.execute(
-                "INSERT INTO Control values(DEFAULT,now(),'{}','control_command_received_{}')".format(modbus_slave_ip,
-                                                                                                      cb_cmd_int[0]))
-            conn.commit()
+            # cur.execute(
+            #     "INSERT INTO Control values(DEFAULT,now(),'{}','control_command_received_{}')".format(modbus_slave_ip,
+            #                                                                                           cb_cmd_int[0]))
+            # conn.commit()
             # If correct control command received, reset control register
             slave_1.set_values('B', cb_cmd_addr[0], [0] * 6)
             print(modbus_slave_ip, 'Open command executed:', datetime.datetime.now())
@@ -79,10 +79,10 @@ def cb_simulator(modbus_slave_ip, cb_type):
         elif cb_cmd_int == (905, 10, cb[cb_type], 1, 13107, 13107):
             cb_status_int = 5
             print(modbus_slave_ip, 'Close command received', datetime.datetime.now())
-            cur.execute(
-                "INSERT INTO Control values(DEFAULT,now(),'{}','control_command_received_{}')".format(modbus_slave_ip,
-                                                                                                      cb_cmd_int[0]))
-            conn.commit()
+            # cur.execute(
+            #     "INSERT INTO Control values(DEFAULT,now(),'{}','control_command_received_{}')".format(modbus_slave_ip,
+            #                                                                                           cb_cmd_int[0]))
+            # conn.commit()
             # If correct control command received, reset control register
             slave_1.set_values('B', cb_cmd_addr[0], [0] * 6)
             print(modbus_slave_ip, 'Close command executed', datetime.datetime.now())

@@ -10,13 +10,9 @@ from multiprocessing import shared_memory
 # ------------------------------------------------------------------------------
 # Configuration:
 # Listening IP address
-modbus_slave_ip_cb_utility = "172.168.200.1"
 modbus_slave_ip_cb_load = "172.168.200.2"
-modbus_slave_ip_cb_chp = "172.168.200.5"
-modbus_slave_ip_cb_pv = "172.168.200.3"
-modbus_slave_ip_cb_bess = '172.168.200.4'
-
-scaling_cb = -1
+load = 500
+scaling_cb = 10
 # Listening port
 modbus_slave_port = 502
 # Listening slave ID
@@ -39,7 +35,7 @@ status = {4: 'Open', 5: 'Close'}
 
 def cb_simulator(modbus_slave_ip, cb_type):
     # Connect to the log database
-    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
+    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="192.9.163.61", port="5432")
     cur = conn.cursor()
     # Create the server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip, port=modbus_slave_port)
@@ -60,25 +56,9 @@ def cb_simulator(modbus_slave_ip, cb_type):
     slave_1.set_values('D', rotation2_addr[0], rotation2_addr[3])
     # Created a shared memory to exchange CB status and active power
     try:
-        shm_cb_utility = shared_memory.SharedMemory(name=modbus_slave_ip_cb_utility, create=True, size=10)
+        shm = shared_memory.SharedMemory(name=modbus_slave_ip, create=True, size=10)
     except BaseException:
-        shm_cb_utility = shared_memory.SharedMemory(name=modbus_slave_ip_cb_utility, create=False, size=10)
-    try:
-        shm_cb_chp = shared_memory.SharedMemory(name=modbus_slave_ip_cb_chp, create=True, size=10)
-    except BaseException:
-        shm_cb_chp = shared_memory.SharedMemory(name=modbus_slave_ip_cb_chp, create=False, size=10)
-    try:
-        shm_cb_pv = shared_memory.SharedMemory(name=modbus_slave_ip_cb_pv, create=True, size=10)
-    except BaseException:
-        shm_cb_pv = shared_memory.SharedMemory(name=modbus_slave_ip_cb_pv, create=False, size=10)
-    try:
-        shm_cb_bess = shared_memory.SharedMemory(name=modbus_slave_ip_cb_bess, create=True, size=10)
-    except BaseException:
-        shm_cb_bess = shared_memory.SharedMemory(name=modbus_slave_ip_cb_bess, create=False, size=10)
-    try:
-        shm_cb_load = shared_memory.SharedMemory(name=modbus_slave_ip_cb_load, create=True, size=10)
-    except BaseException:
-        shm_cb_load = shared_memory.SharedMemory(name=modbus_slave_ip_cb_load, create=False, size=10)
+        shm = shared_memory.SharedMemory(name=modbus_slave_ip, create=False, size=10)
     while True:
         # Read data from each Modbus register, convert it from machine code to int. These values are inputs of the simulator engine
         cb_status_c = slave_1.get_values('A', cb_status_addr[0], 1)
@@ -111,35 +91,24 @@ def cb_simulator(modbus_slave_ip, cb_type):
         # Update new CB status to Modbus register
         slave_1.set_values('A', cb_status_addr[0], cb_status_int)
         # Save CB status to shared memory, data type is int8
-        shm_cb_utility.buf[0] = cb_status_int
-        if cb_status_int == 4:
-            active_power_utility_int = 0
-        else:
-            active_power_load_c = [shm_cb_load.buf[1] * 256 + shm_cb_load.buf[2], shm_cb_load.buf[3] * 256 + shm_cb_load.buf[4]]
-            active_power_load_int = C2int('float32', active_power_load_c)
-            active_power_chp_c = [shm_cb_chp.buf[1] * 256 + shm_cb_chp.buf[2], shm_cb_chp.buf[3] * 256 + shm_cb_chp.buf[4]]
-            active_power_chp_int = C2int('float32', active_power_chp_c)
-            active_power_pv_c = [shm_cb_pv.buf[1] * 256 + shm_cb_pv.buf[2], shm_cb_pv.buf[3] * 256 + shm_cb_pv.buf[4]]
-            active_power_pv_int = C2int('float32', active_power_pv_c)
-            active_power_bess_c = [shm_cb_bess.buf[1] * 256 + shm_cb_bess.buf[2], shm_cb_bess.buf[3] * 256 + shm_cb_bess.buf[4]]
-            active_power_bess_int = C2int('float32', active_power_bess_c)
-            print(active_power_load_int)
-            print(active_power_chp_int)
-            print(active_power_pv_int)
-            print(active_power_bess_int)
-            active_power_utility_int = scaling_cb*(active_power_load_int + active_power_chp_int + active_power_pv_int + active_power_bess_int)
-        active_power_c = int2C(active_power_addr[1], active_power_utility_int)
+        shm.buf[0] = cb_status_int
+        # Read active power from shared memory, float32
+        print('memory:',shm, shm.buf[1], shm.buf[2], shm.buf[3], shm.buf[4])
+        # Convert active power from float32 to int
+        active_power_int = load*scaling_cb
+        # Convert active power from int to C structure(int16)
+        active_power_c = int2C(active_power_addr[1], active_power_int)
         # Update new CB status to Modbus register
         slave_1.set_values('A', active_power_addr[0], active_power_c)
-
-        active_power_memory = int2C('float32', active_power_utility_int)
-        shm_cb_utility.buf[1] = active_power_memory[0] // 256
-        shm_cb_utility.buf[2] = active_power_memory[0] % 256
-        shm_cb_utility.buf[3] = active_power_memory[1] // 256
-        shm_cb_utility.buf[4] = active_power_memory[1] % 256
-
+        # Close the link to shared memory
+        # timer for next cycle
+        active_power_memory = int2C('float32', active_power_int)
+        shm.buf[1] = active_power_memory[0] // 256
+        shm.buf[2] = active_power_memory[0] % 256
+        shm.buf[3] = active_power_memory[1] // 256
+        shm.buf[4] = active_power_memory[1] % 256
         time.sleep(0.4)
 
 
 if __name__ == "__main__":
-    cb_simulator(modbus_slave_ip_cb_utility, 'MTZ2')
+    cb_simulator(modbus_slave_ip_cb_load, 'MTZ2')

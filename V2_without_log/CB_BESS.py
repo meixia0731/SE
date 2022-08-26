@@ -10,9 +10,8 @@ from multiprocessing import shared_memory
 # ------------------------------------------------------------------------------
 # Configuration:
 # Listening IP address
-modbus_slave_ip_pv = '172.168.200.8'
-# PV_CB address. PV will get CB status from this memory and send P to this memory
-modbus_slave_ip_cb_pv = "172.168.200.3"
+modbus_slave_ip_bess = '172.168.200.7'
+modbus_slave_ip_cb_bess = '172.168.200.4'
 # Listening port
 modbus_slave_port = 502
 # Listening slave ID
@@ -35,8 +34,8 @@ status = {4: 'Open', 5: 'Close'}
 
 def cb_simulator(modbus_slave_ip, cb_type):
     # Connect to the log database
-    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
-    cur = conn.cursor()
+    # conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
+    # cur = conn.cursor()
     # Create the server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip, port=modbus_slave_port)
     # Start the server
@@ -68,10 +67,10 @@ def cb_simulator(modbus_slave_ip, cb_type):
         if cb_cmd_int == (904, 10, cb[cb_type], 1, 13107, 13107):
             cb_status_int = 4
             print(modbus_slave_ip, 'Open command received:', datetime.datetime.now())
-            cur.execute(
-                "INSERT INTO Control values(DEFAULT,now(),'{}','control_command_received_{}')".format(modbus_slave_ip,
-                                                                                                      cb_cmd_int[0]))
-            conn.commit()
+            # cur.execute(
+            #     "INSERT INTO Control values(DEFAULT,now(),'{}','control_command_received_{}')".format(modbus_slave_ip,
+            #                                                                                           cb_cmd_int[0]))
+            # conn.commit()
             # If correct control command received, reset control register
             slave_1.set_values('B', cb_cmd_addr[0], [0] * 6)
             print(modbus_slave_ip, 'Open command executed:', datetime.datetime.now())
@@ -79,10 +78,10 @@ def cb_simulator(modbus_slave_ip, cb_type):
         elif cb_cmd_int == (905, 10, cb[cb_type], 1, 13107, 13107):
             cb_status_int = 5
             print(modbus_slave_ip, 'Close command received', datetime.datetime.now())
-            cur.execute(
-                "INSERT INTO Control values(DEFAULT,now(),'{}','control_command_received_{}')".format(modbus_slave_ip,
-                                                                                                      cb_cmd_int[0]))
-            conn.commit()
+            # cur.execute(
+            #     "INSERT INTO Control values(DEFAULT,now(),'{}','control_command_received_{}')".format(modbus_slave_ip,
+            #                                                                                           cb_cmd_int[0]))
+            # conn.commit()
             # If correct control command received, reset control register
             slave_1.set_values('B', cb_cmd_addr[0], [0] * 6)
             print(modbus_slave_ip, 'Close command executed', datetime.datetime.now())
@@ -93,8 +92,8 @@ def cb_simulator(modbus_slave_ip, cb_type):
         # Save CB status to shared memory, data type is int8
         shm.buf[0] = cb_status_int
         # Read active power from shared memory, float32
-        print('memory:',shm, shm.buf[1], shm.buf[2], shm.buf[3], shm.buf[4])
         active_power_c = [shm.buf[1] * 256 + shm.buf[2], shm.buf[3] * 256 + shm.buf[4]]
+        print('memory:',shm, shm.buf[1], shm.buf[2], shm.buf[3], shm.buf[4])
         # Convert active power from float32 to int
         active_power_int = C2int('float32', active_power_c)
         # Convert active power from int to C structure(int16)
@@ -107,4 +106,4 @@ def cb_simulator(modbus_slave_ip, cb_type):
 
 
 if __name__ == "__main__":
-    cb_simulator(modbus_slave_ip_cb_pv, 'MTZ2')
+    cb_simulator(modbus_slave_ip_cb_bess, 'MTZ2')

@@ -21,10 +21,10 @@ modbus_slave_id = 1
 # Modbus data points configuration, [modbus_address, data_type, length, initial_value]
 active_power_addr = [8069, 'uint64', 4, 0]
 reactive_power_addr = [8075, 'int64', 4, 300]
-limitation_power_addr = [8085, 'uint32', 2, 770]
+limitation_power_addr = [8085, 'uint32', 2, 1000]
 start_stop_status_addr = [8067, 'uint16', 1, 1]
 start_stop_cmd_addr = [8001, 'uint16', 1, 1]
-active_power_sp_addr = [8002, 'uint32', 2, 300]
+active_power_sp_addr = [8002, 'uint32', 2, 1000]
 energy_addr = [8079, 'uint64', 4, 30000]
 # --------------------------------------------------------------------
 # Scaling, not in use
@@ -42,7 +42,7 @@ def pv_simulator():
     start_stop_cmd_old = 0
     active_power_sp_old = 0
     # Connect to the log database
-    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
+    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="192.9.163.61", port="5432")
     cur = conn.cursor()
     # Create the modbus slave server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip_pv, port=modbus_slave_port)

@@ -21,9 +21,9 @@ modbus_slave_id = 1
 # --------------------------------------------------------------------
 # Modbus data points configuration, [modbus_address, data_type, length, initial_value]
 active_power_sp_addr = [1030, 'uint16', 1, 100]
-start_stop_cmd_addr = [1025, 'int16', 1, 0]
-# 36.5
-start_status_addr = [36, 'int16', 1, 32]
+start_stop_cmd_addr = [1025, 'int16', 1, 1]
+# 37.8
+start_status_addr = [37, 'int16', 1, 256]
 #36.8
 remote_mode_addr = [36, 'int16', 1, 256]
 # 38.3
@@ -53,7 +53,7 @@ def chp_simulator():
     start_stop_cmd_old = 0
     active_power_sp_old = 0
     # # Connect to the log database
-    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="127.0.0.1", port="5432")
+    conn = psycopg2.connect(dbname="microgrid", user="postgres", password="postgres", host="192.9.163.61", port="5432")
     cur = conn.cursor()
     # Create the modbus slave server
     server = modbus_tcp.TcpServer(address=modbus_slave_ip_chp, port=modbus_slave_port)
@@ -76,6 +76,7 @@ def chp_simulator():
     slave_1.set_values('A', v12_addr[0], v12_addr[3])
     slave_1.set_values('A', v23_addr[0], v23_addr[3])
     slave_1.set_values('A', v13_addr[0], v13_addr[3])
+    slave_1.set_values('A', remote_mode_addr[0], remote_mode_addr[3])
     # PV simulator get CB status from PV_CB memory. PV_CB simulator get P from PV simulator
     try:
         # if PV_CB memory does not exist, create it
@@ -106,7 +107,7 @@ def chp_simulator():
         energy_addr_int = C2int(energy_addr[1], energy_addr_c)
         # Print logic inputs of this circle
         print('Engine Inputs:')
-        print('active_power_setpoint:', active_power_sp_int, '%')
+        print('active_power_setpoint:', active_power_sp_int/10, '%')
         print('Start_Stop Command:', start_stop_cmd_int, )
         print('active_power_measurement:', active_power_int, 'kW')
         print('energy:', energy_addr_int, 'kWh')
@@ -129,16 +130,13 @@ def chp_simulator():
         # if stop command received, change P setpoint to zero. New P = P + (P_setpint-P)*Ramp_rate
         if start_stop_cmd_int == 0:
             active_power_int = 0
-            start_status_int = 256
+            start_status_int = 0
             stop_status_int = 8
         elif start_stop_cmd_int == 1:
-            start_status_int = 288
+            start_status_int = 256
             stop_status_int = 0
-            active_power_int = int(active_power_sp_int*capacity/100)
-        else:
-            start_status_int = 288
-            stop_status_int = 0
-            print('cmd input out of range, 0 for stop, 1 for start')
+            active_power_int = int(active_power_sp_int*capacity/1000)
+        # print('cmd input out of range, 0 for stop, 1 for start')
         start_status_c = int2C(start_status_addr[1], start_status_int)
         slave_1.set_values('A', start_status_addr[0], start_status_c)
         stop_status_c = int2C(stop_status_addr[1], stop_status_int)

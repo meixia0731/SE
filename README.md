@@ -8,18 +8,23 @@ So I develop this tool to simulate a microgrid.
 
 
 1. PV simulator (Modbus TCP)
+
 It can communicate with microgrid controller and calculate P output accordingly.
 
 2. BESS simulator (Modbus TCP)
+
 It can communicate with microgrid controller and calculate P and SOC accordingly.
 
 3. CHP simulator (Modbus TCP)
+
 It can communicate with microgrid controller and calculate P accordingly.
 
 4. CB simulator (Modbus TCP)
+
 Each DER comes with a smart CB. Microgrid controller can send Open/Close commands to them.
 
 5. Screenshot
+
 This script will take screenshot to the microgrid and save them into a database for further analysis.
 
 

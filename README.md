@@ -21,3 +21,6 @@ Each DER comes with a smart CB. Microgrid controller can send Open/Close command
 
 5. Screenshot
 This script will take screenshot to the microgrid and save them into a database for further analysis.
+
+
+![Microgrid testing](https://user-images.githubusercontent.com/29573181/229689515-9541e6fe-83bb-46e1-aa7b-a7e589bcf6fa.jpg)

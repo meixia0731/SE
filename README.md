@@ -1,8 +1,6 @@
 A Microgrid testing framework
 
-As microgrid project profit is always not that good, the buget for onsite commisisoning is very small. Then microgrid controller is usually configured and tested in Lab, without DER connecton.
-
-We can't have all those DERs installed in the lab but we need to verify the microgrid control logic and communication.
+Microgrid controller is usually configured and tested in Lab, without DER connecton, but we need to verify the microgrid control logic and communication.
 
 So I develop this tool to simulate a microgrid.
 

@@ -1,4 +1,6 @@
-A Microgrid testing framework
+A Microgrid simulation framework
+
+
 
 Microgrid controller is usually configured and tested in Lab, without DER connecton, but we need to verify the microgrid control logic and communication.
 
